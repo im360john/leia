@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { X, Plus, Trash2, Calendar, DollarSign, Mail, ShoppingCart, User, MapPin, Clock, Target } from 'lucide-react'
+import { Segment } from '../lib/supabase'
+import { logger } from '../lib/logger'
 
 interface SegmentFormProps {
-  segment?: any
-  onSave: (data: any) => void
+  segment?: Segment | null
+  onSave: (data: Omit<Segment, 'id' | 'created_at' | 'updated_at'>) => void
   onCancel: () => void
 }
 
@@ -108,7 +110,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
     }
   ])
 
-  const [activeTab, setActiveTab] = useState<'customer' | 'purchase' | 'engagement'>('customer')
+  const [activeTab, setActiveTab] = useState<keyof typeof FILTER_FIELDS>('customer')
   const [estimatedCount, setEstimatedCount] = useState(0)
 
   const addFilterGroup = () => {
@@ -190,13 +192,23 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    const segmentData = {
-      ...formData,
+    logger.debug('Segment form submitted', {
+      component: 'SegmentForm',
+      isEdit: !!segment,
+      filterGroupsCount: filterGroups.length
+    })
+    
+    const segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at'> = {
+      user_id: '', // Will be set by API
+      name: formData.name,
+      description: formData.description,
+      type: formData.type as 'behavioral' | 'predictive',
       criteria: {
         filterGroups,
         estimatedCount
       },
-      customer_count: estimatedCount
+      customer_count: estimatedCount,
+      growth_rate: segment?.growth_rate
     }
     
     onSave(segmentData)
@@ -346,7 +358,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setActiveTab(key as any)}
+                      onClick={() => setActiveTab(key as keyof typeof FILTER_FIELDS)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         activeTab === key
                           ? 'bg-purple-100 text-purple-700'
