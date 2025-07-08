@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { DollarSign, Mail, Users, Eye, TrendingUp } from 'lucide-react'
+import { DollarSign, Mail, Users, Eye } from 'lucide-react'
 import { analyticsAPI, campaignsAPI, segmentsAPI } from '../lib/api'
 import { Campaign, Segment } from '../lib/supabase'
 import { logger } from '../lib/logger'

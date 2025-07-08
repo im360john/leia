@@ -177,16 +177,12 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
     return null
   }
 
-  const calculateEstimatedCount = () => {
+  React.useEffect(() => {
     // Mock calculation based on filter complexity
     const totalRules = filterGroups.reduce((sum, group) => sum + group.rules.length, 0)
     const baseCount = 10000
     const reduction = Math.min(totalRules * 0.3, 0.9)
-    return Math.floor(baseCount * (1 - reduction))
-  }
-
-  React.useEffect(() => {
-    setEstimatedCount(calculateEstimatedCount())
+    setEstimatedCount(Math.floor(baseCount * (1 - reduction)))
   }, [filterGroups])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -354,7 +350,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
               <div className="p-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Filter Categories</h3>
                 <div className="space-y-1">
-                  {Object.entries(FILTER_FIELDS).map(([key, fields]) => (
+                  {Object.entries(FILTER_FIELDS).map(([key]) => (
                     <button
                       key={key}
                       type="button"
