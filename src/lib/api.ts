@@ -1,0 +1,281 @@
+import { supabase } from './supabase'
+import type { Campaign, Segment, AnalyticsData } from './supabase'
+
+// For development, we'll use direct Supabase calls instead of edge functions
+// This ensures the app works while edge functions are being set up
+
+// AI Chat API - Mock implementation for now
+export const chatAPI = {
+  async sendMessage(
+    message: string, 
+    context?: {
+      campaigns?: Campaign[]
+      segments?: Segment[]
+      analytics?: AnalyticsData[]
+    }
+  ): Promise<{ response: string; suggestions?: string[] }> {
+    try {
+      // Call the Supabase Edge Function for AI chat
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message,
+          context
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Failed to send message to AI:', error)
+      
+      // Fallback to mock response if edge function fails
+      const fallbackResponses = [
+        "I'm having some connectivity issues right now, but I'm here to help with your marketing strategy. What would you like to focus on?",
+        "I'm experiencing technical difficulties, but I can still assist you. Could you tell me more about your marketing goals?",
+        "My AI services are temporarily unavailable, but I can provide general marketing guidance. What's your main challenge?"
+      ]
+      
+      return {
+        response: fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)],
+        suggestions: [
+          "Show me campaign performance",
+          "Analyze customer segments", 
+          "Help with email optimization",
+          "Review marketing metrics"
+        ]
+      }
+    }
+  }
+}
+
+// Campaigns API - Direct Supabase calls
+export const campaignsAPI = {
+  async getAll(): Promise<Campaign[]> {
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Supabase error:', error)
+        throw new Error(`Failed to fetch campaigns: ${error.message}`)
+      }
+      
+      return data || []
+    } catch (error) {
+      console.error('Error fetching campaigns:', error)
+      // Return empty array instead of throwing to prevent app crash
+      return []
+    }
+  },
+
+  async create(campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>): Promise<Campaign> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !user.id || user.id.trim() === '') {
+      throw new Error('User not authenticated or invalid user ID')
+    }
+
+    const { data, error } = await supabase
+      .from('campaigns')
+      .insert([{
+        ...campaign,
+        user_id: user.id
+      }])
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to create campaign: ${error.message}`)
+    }
+    
+    return data
+  },
+
+  async update(id: string, updates: Partial<Campaign>): Promise<Campaign> {
+    const { data, error } = await supabase
+      .from('campaigns')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to update campaign: ${error.message}`)
+    }
+    
+    return data
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('id', id)
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to delete campaign: ${error.message}`)
+    }
+  }
+}
+
+// Segments API - Direct Supabase calls
+export const segmentsAPI = {
+  async getAll(): Promise<Segment[]> {
+    try {
+      const { data, error } = await supabase
+        .from('segments')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Supabase error:', error)
+        throw new Error(`Failed to fetch segments: ${error.message}`)
+      }
+      
+      return data || []
+    } catch (error) {
+      console.error('Error fetching segments:', error)
+      // Return empty array instead of throwing to prevent app crash
+      return []
+    }
+  },
+
+  async create(segment: Omit<Segment, 'id' | 'created_at' | 'updated_at'>): Promise<Segment> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !user.id || user.id.trim() === '') {
+      throw new Error('User not authenticated or invalid user ID')
+    }
+
+    const { data, error } = await supabase
+      .from('segments')
+      .insert([{
+        ...segment,
+        user_id: user.id
+      }])
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to create segment: ${error.message}`)
+    }
+    
+    return data
+  },
+
+  async update(id: string, updates: Partial<Segment>): Promise<Segment> {
+    const { data, error } = await supabase
+      .from('segments')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to update segment: ${error.message}`)
+    }
+    
+    return data
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('segments')
+      .delete()
+      .eq('id', id)
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to delete segment: ${error.message}`)
+    }
+  }
+}
+
+// Analytics API - Mock implementation with realistic data
+export const analyticsAPI = {
+  async getMetrics(period: string = '30d'): Promise<AnalyticsData[]> {
+    // Mock analytics data for development
+    const mockData: AnalyticsData[] = [
+      {
+        id: '1',
+        metric_name: 'total_revenue',
+        metric_value: 45230,
+        period,
+        date: new Date().toISOString(),
+        metadata: { currency: 'USD' }
+      },
+      {
+        id: '2', 
+        metric_name: 'open_rate',
+        metric_value: 24.5,
+        period,
+        date: new Date().toISOString(),
+        metadata: { unit: 'percentage' }
+      }
+    ]
+    
+    return mockData
+  },
+
+  async getDashboardData(): Promise<{
+    totalRevenue: number
+    totalCampaigns: number
+    totalSegments: number
+    avgOpenRate: number
+    recentCampaigns: Campaign[]
+    topSegments: Segment[]
+  }> {
+    try {
+      // Get actual data from Supabase
+      const [campaignsResult, segmentsResult] = await Promise.all([
+        supabase.from('campaigns').select('*'),
+        supabase.from('segments').select('*')
+      ])
+
+      const campaigns = campaignsResult.data || []
+      const segments = segmentsResult.data || []
+
+      // Calculate metrics from actual data
+      const totalRevenue = campaigns.reduce((sum, campaign) => sum + (campaign.revenue || 0), 0)
+      const avgOpenRate = campaigns.length > 0 
+        ? campaigns.reduce((sum, campaign) => sum + (campaign.open_rate || 0), 0) / campaigns.length
+        : 0
+
+      return {
+        totalRevenue,
+        totalCampaigns: campaigns.length,
+        totalSegments: segments.length,
+        avgOpenRate,
+        recentCampaigns: campaigns.slice(0, 5),
+        topSegments: segments.slice(0, 5)
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+      // Return default values if there's an error
+      return {
+        totalRevenue: 0,
+        totalCampaigns: 0,
+        totalSegments: 0,
+        avgOpenRate: 0,
+        recentCampaigns: [],
+        topSegments: []
+      }
+    }
+  }
+}
