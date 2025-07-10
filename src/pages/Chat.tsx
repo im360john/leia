@@ -3,6 +3,7 @@ import { MessageSquare, Send } from 'lucide-react'
 import { chatAPI, campaignsAPI, segmentsAPI, analyticsAPI } from '../lib/api'
 import { Campaign, Segment, AnalyticsData } from '../lib/supabase'
 import { logger } from '../lib/logger'
+import { useAuth } from '../hooks/useAuth'
 
 interface ChatMessage {
   id: string
@@ -48,6 +49,7 @@ function formatMessage(content: string): string {
 }
 
 export function Chat() {
+  const { user } = useAuth()
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -113,6 +115,11 @@ export function Chat() {
   const handleSendMessage = async () => {
     if (!chatInput.trim() || chatLoading) return
 
+    if (!user) {
+      logger.error('User not authenticated', { component: 'Chat' })
+      return
+    }
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       content: chatInput,
@@ -122,7 +129,8 @@ export function Chat() {
 
     logger.info('Sending chat message', {
       component: 'Chat',
-      messageLength: chatInput.length
+      messageLength: chatInput.length,
+      userId: user.id
     })
 
     setChatMessages(prev => [...prev, userMessage])
@@ -143,7 +151,7 @@ export function Chat() {
         content: msg.content
       }))
       
-      const response = await chatAPI.sendMessage(chatInput, context, previousMessages)
+      const response = await chatAPI.sendMessage(chatInput, user.id, context, previousMessages)
       
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),

@@ -8,6 +8,7 @@ import type { Campaign, Segment, AnalyticsData } from './supabase'
 export const chatAPI = {
   async sendMessage(
     message: string, 
+    userId: string,
     context?: {
       campaigns?: Campaign[]
       segments?: Segment[]
@@ -27,6 +28,7 @@ export const chatAPI = {
         },
         body: JSON.stringify({
           message,
+          userId,
           context,
           previousMessages
         })
