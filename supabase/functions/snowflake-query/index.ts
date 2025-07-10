@@ -7,12 +7,13 @@ const corsHeaders = {
 
 interface QueryRequest {
   type: 'schema' | 'count' | 'preview' | 'execute'
+  query?: string
   table?: string
   whereClause?: string
   limit?: number
 }
 
-// First, authenticate and get a session token
+// Authenticate with Snowflake
 async function authenticateSnowflake(
   account: string,
   username: string,
@@ -21,18 +22,18 @@ async function authenticateSnowflake(
   const loginUrl = `https://${account}.snowflakecomputing.com/session/v1/login-request`
   
   console.log(`Authenticating with Snowflake account: ${account}`)
+  console.log(`Username: ${username}`)
   
   const response = await fetch(loginUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': 'Supabase-Edge-Function/1.0',
     },
     body: JSON.stringify({
       data: {
-        CLIENT_APP_ID: 'Supabase-Edge-Function',
-        CLIENT_APP_VERSION: '1.0',
+        CLIENT_APP_ID: 'JavaScript',
+        CLIENT_APP_VERSION: '1.0.0',
         ACCOUNT_NAME: account,
         LOGIN_NAME: username,
         PASSWORD: password,
@@ -40,28 +41,24 @@ async function authenticateSnowflake(
     }),
   })
 
-  const responseText = await response.text()
-  console.log('Auth response status:', response.status)
-  
   if (!response.ok) {
-    console.error('Auth error response:', responseText)
-    throw new Error(`Authentication failed (${response.status}): ${responseText}`)
+    const errorText = await response.text()
+    console.error('Auth error:', errorText)
+    throw new Error(`Authentication failed: ${errorText}`)
   }
 
-  try {
-    const result = JSON.parse(responseText)
-    if (!result.data?.token) {
-      throw new Error('No token in authentication response')
-    }
-    return result.data.token
-  } catch (e) {
-    console.error('Failed to parse auth response:', e)
-    throw new Error(`Invalid authentication response: ${responseText}`)
+  const result = await response.json()
+  if (!result.data?.token) {
+    console.error('Auth response:', JSON.stringify(result))
+    throw new Error('No token in authentication response')
   }
+  
+  console.log('Successfully authenticated with Snowflake')
+  return result.data.token
 }
 
 // Execute query using session token
-async function executeSnowflakeQuery(
+async function executeQuery(
   account: string,
   token: string,
   warehouse: string,
@@ -69,18 +66,18 @@ async function executeSnowflakeQuery(
   schema: string,
   statement: string
 ): Promise<any> {
-  const url = `https://${account}.snowflakecomputing.com/queries/v1/query-request`
+  const queryUrl = `https://${account}.snowflakecomputing.com/queries/v1/query-request`
   
-  console.log(`Executing query on ${account}`)
-  console.log(`Query: ${statement.substring(0, 200)}...`)
+  console.log(`Executing query on warehouse: ${warehouse}`)
+  console.log(`Database: ${database}, Schema: ${schema}`)
+  console.log(`SQL: ${statement}`)
   
-  const response = await fetch(url, {
+  const response = await fetch(queryUrl, {
     method: 'POST',
     headers: {
       'Authorization': `Snowflake Token="${token}"`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': 'Supabase-Edge-Function/1.0',
     },
     body: JSON.stringify({
       sqlText: statement,
@@ -88,49 +85,38 @@ async function executeSnowflakeQuery(
       database: database,
       schema: schema,
       role: 'PUBLIC',
-      bindings: {},
     }),
   })
 
-  const responseText = await response.text()
-  console.log('Query response status:', response.status)
-  
   if (!response.ok) {
-    console.error('Query error response:', responseText)
-    throw new Error(`Query failed (${response.status}): ${responseText}`)
+    const errorText = await response.text()
+    console.error('Query error response:', errorText)
+    throw new Error(`Query failed: ${errorText}`)
   }
 
-  try {
-    const result = JSON.parse(responseText)
+  const result = await response.json()
+  
+  // Check if we need to poll for results
+  if (result.data?.queryId && !result.data?.rowset) {
+    // Wait a bit before polling
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    // Check if we need to poll for results
-    if (result.data?.queryId && !result.data?.rowset) {
-      console.log('Query is running, polling for results...')
-      
-      // Wait a bit before polling
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Poll for results
-      const resultUrl = `https://${account}.snowflakecomputing.com/queries/${result.data.queryId}/result`
-      const pollResponse = await fetch(resultUrl, {
-        headers: {
-          'Authorization': `Snowflake Token="${token}"`,
-          'Accept': 'application/json',
-          'User-Agent': 'Supabase-Edge-Function/1.0',
-        },
-      })
-      
-      if (pollResponse.ok) {
-        const pollResult = await pollResponse.json()
-        return pollResult
-      }
+    // Poll for results
+    const resultUrl = `https://${account}.snowflakecomputing.com/queries/${result.data.queryId}/result`
+    const pollResponse = await fetch(resultUrl, {
+      headers: {
+        'Authorization': `Snowflake Token="${token}"`,
+        'Accept': 'application/json',
+      },
+    })
+    
+    if (pollResponse.ok) {
+      const pollResult = await pollResponse.json()
+      return pollResult
     }
-    
-    return result
-  } catch (e) {
-    console.error('Failed to parse query response:', e)
-    throw new Error(`Invalid query response: ${responseText}`)
   }
+  
+  return result
 }
 
 serve(async (req) => {
@@ -141,36 +127,42 @@ serve(async (req) => {
   let token: string | null = null
 
   try {
-    console.log('Snowflake query function invoked (session auth version)')
-    
-    // Get Snowflake credentials from environment
+    // Get credentials
     const account = Deno.env.get('SNOWFLAKE_ACCOUNT') || ''
     const username = Deno.env.get('SNOWFLAKE_USERNAME') || ''
     const password = Deno.env.get('SNOWFLAKE_PASSWORD') || ''
     const warehouse = Deno.env.get('SNOWFLAKE_WAREHOUSE') || 'COMPUTE_WH'
+    const database = Deno.env.get('SNOWFLAKE_DATABASE') || 'RETAIL_ANALYTICS'
+    const schema = Deno.env.get('SNOWFLAKE_SCHEMA') || 'DBT_CUSTOMER'
     
-    // Validate credentials
     if (!account || !username || !password) {
-      throw new Error('Snowflake credentials not configured. Please set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USERNAME, and SNOWFLAKE_PASSWORD.')
+      throw new Error('Snowflake credentials not configured')
     }
 
-    // Authenticate and get session token
+    // Authenticate
     token = await authenticateSnowflake(account, username, password)
-    console.log('Successfully authenticated with Snowflake')
 
-    const { type, table, whereClause, limit = 100 } = await req.json() as QueryRequest
-    console.log('Query type:', type)
-
-    const database = 'RETAIL_ANALYTICS'
-    const schema = 'DBT_CUSTOMER'
-    const tableName = 'CUSTOMER_FACT'
+    const { type, query, table, whereClause, limit = 100 } = await req.json() as QueryRequest
+    const tableName = table || 'CUSTOMER_FACT'
     
     let result: any = {}
+    let statement = ''
 
     switch (type) {
+      case 'execute':
+        if (!query) {
+          throw new Error('Query parameter is required for execute type')
+        }
+        statement = query
+        const execResult = await executeQuery(account, token, warehouse, database, schema, statement)
+        result = {
+          data: execResult.data?.rowset || [],
+          rowCount: execResult.data?.total || 0,
+        }
+        break
+
       case 'schema':
-        // Get table schema information
-        const schemaQuery = `
+        statement = `
           SELECT 
             COLUMN_NAME,
             DATA_TYPE,
@@ -182,17 +174,8 @@ serve(async (req) => {
             AND TABLE_NAME = '${tableName}'
           ORDER BY ORDINAL_POSITION
         `
-        
-        const schemaResponse = await executeSnowflakeQuery(
-          account,
-          token,
-          warehouse,
-          database,
-          schema,
-          schemaQuery
-        )
-        
-        const schemaData = schemaResponse.data?.rowset || []
+        const schemaResult = await executeQuery(account, token, warehouse, database, schema, statement)
+        const schemaData = schemaResult.data?.rowset || []
         
         result = {
           columns: schemaData.map((row: any[]) => ({
@@ -205,28 +188,18 @@ serve(async (req) => {
         break
 
       case 'count':
-        // Get count with WHERE clause
         const orgFilter = "ORG_ID = '845b5f9a-f53f-4c43-8553-4a263b2a3bb5'"
         const fullWhereClause = whereClause 
           ? `${orgFilter} AND (${whereClause})`
           : orgFilter
           
-        const countQuery = `
+        statement = `
           SELECT COUNT(*) as customer_count
           FROM ${database}.${schema}.${tableName}
           WHERE ${fullWhereClause}
         `
-        
-        const countResponse = await executeSnowflakeQuery(
-          account,
-          token,
-          warehouse,
-          database,
-          schema,
-          countQuery
-        )
-        
-        const countData = countResponse.data?.rowset || []
+        const countResult = await executeQuery(account, token, warehouse, database, schema, statement)
+        const countData = countResult.data?.rowset || []
         
         result = {
           count: countData[0]?.[0] ? parseInt(countData[0][0]) : 0,
@@ -235,30 +208,20 @@ serve(async (req) => {
         break
 
       case 'preview':
-        // Get sample records
         const orgFilterPreview = "ORG_ID = '845b5f9a-f53f-4c43-8553-4a263b2a3bb5'"
         const fullWhereClausePreview = whereClause 
           ? `${orgFilterPreview} AND (${whereClause})`
           : orgFilterPreview
           
-        const previewQuery = `
+        statement = `
           SELECT *
           FROM ${database}.${schema}.${tableName}
           WHERE ${fullWhereClausePreview}
           LIMIT ${limit}
         `
-        
-        const previewResponse = await executeSnowflakeQuery(
-          account,
-          token,
-          warehouse,
-          database,
-          schema,
-          previewQuery
-        )
-        
-        const previewData = previewResponse.data?.rowset || []
-        const columnNames = previewResponse.data?.rowtype?.map((col: any) => col.name) || []
+        const previewResult = await executeQuery(account, token, warehouse, database, schema, statement)
+        const previewData = previewResult.data?.rowset || []
+        const columnNames = previewResult.data?.rowtype?.map((col: any) => col.name) || []
         
         result = {
           rows: previewData,
@@ -293,7 +256,7 @@ serve(async (req) => {
       }
     )
   } finally {
-    // Log out if we have a token
+    // Logout if we have a token
     if (token) {
       try {
         const account = Deno.env.get('SNOWFLAKE_ACCOUNT') || ''
@@ -301,7 +264,6 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Authorization': `Snowflake Token="${token}"`,
-            'User-Agent': 'Supabase-Edge-Function/1.0',
           },
         })
       } catch (e) {

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snowflake Integration Test - Standalone</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="container mx-auto p-8">
+    <h1 class="text-3xl font-bold mb-8">Snowflake Integration Test</h1>
+    
+    <div id="auth-section" class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Authentication</h2>
+      <div id="login-form" class="space-y-4">
+        <input type="email" id="email" placeholder="Email" value="john@treez.io" 
+               class="w-full px-3 py-2 border rounded">
+        <input type="password" id="password" placeholder="Password" value="password123" 
+               class="w-full px-3 py-2 border rounded">
+        <button onclick="login()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          Sign In
+        </button>
+      </div>
+      <div id="user-info" class="hidden">
+        <p class="text-green-600 mb-2">✓ Authenticated</p>
+        <button onclick="logout()" class="text-sm text-red-600 hover:underline">Sign Out</button>
+      </div>
+    </div>
+
+    <div id="test-section" class="bg-white rounded-lg shadow p-6 hidden">
+      <h2 class="text-xl font-semibold mb-4">Tests</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <button onclick="testSchema()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          Test Schema
+        </button>
+        <button onclick="testCount()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+          Test Count
+        </button>
+        <button onclick="testPreview()" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">
+          Test Preview
+        </button>
+        <button onclick="runAllTests()" class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600">
+          Run All
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <h3 class="font-medium mb-2">Custom Query</h3>
+        <div class="flex gap-2">
+          <input type="text" id="custom-query" 
+                 value="SELECT COUNT(*) FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT"
+                 class="flex-1 px-3 py-2 border rounded">
+          <button onclick="testCustom()" class="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600">
+            Execute
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">Results</h2>
+        <button onclick="clearResults()" class="text-sm text-gray-600 hover:text-gray-900">
+          Clear
+        </button>
+      </div>
+      <div id="results" class="space-y-4">
+        <p class="text-gray-500">No results yet</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createClient } = supabase
+    const SUPABASE_URL = 'https://ievsqjsqurnvsbzczuhc.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlldnNxanNxdXJudnNiemN6dWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzODcwNzYsImV4cCI6MjA1MTk2MzA3Nn0.b_zAYqLUC0x_w1njaCKGM2TUZu6z_V5IDV2oqQwmvCQ'
+    
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession()
+      if (session) {
+        document.getElementById('login-form').classList.add('hidden')
+        document.getElementById('user-info').classList.remove('hidden')
+        document.getElementById('test-section').classList.remove('hidden')
+      } else {
+        document.getElementById('login-form').classList.remove('hidden')
+        document.getElementById('user-info').classList.add('hidden')
+        document.getElementById('test-section').classList.add('hidden')
+      }
+    }
+    
+    async function login() {
+      const email = document.getElementById('email').value
+      const password = document.getElementById('password').value
+      
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password })
+      if (error) {
+        addResult('Authentication', false, null, error.message)
+      } else {
+        await checkAuth()
+        addResult('Authentication', true, { message: 'Successfully signed in' })
+      }
+    }
+    
+    async function logout() {
+      await supabaseClient.auth.signOut()
+      await checkAuth()
+      clearResults()
+    }
+    
+    function addResult(type, success, data, error) {
+      const resultsDiv = document.getElementById('results')
+      if (resultsDiv.querySelector('.text-gray-500')) {
+        resultsDiv.innerHTML = ''
+      }
+      
+      const resultDiv = document.createElement('div')
+      resultDiv.className = `p-4 rounded-lg border ${success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`
+      resultDiv.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="font-medium">${success ? '✅' : '❌'} ${type}</h3>
+          <span class="text-sm text-gray-600">${new Date().toLocaleTimeString()}</span>
+        </div>
+        ${error ? 
+          `<p class="text-red-700 text-sm">${error}</p>` : 
+          `<pre class="text-xs bg-white p-2 rounded overflow-x-auto">${JSON.stringify(data, null, 2)}</pre>`
+        }
+      `
+      resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild)
+    }
+    
+    function clearResults() {
+      document.getElementById('results').innerHTML = '<p class="text-gray-500">No results yet</p>'
+    }
+    
+    async function testSchema() {
+      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
+        body: { type: 'schema', table: 'CUSTOMER_FACT' }
+      })
+      addResult('Schema Query', !error, data, error?.message)
+    }
+    
+    async function testCount() {
+      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
+        body: { type: 'count', whereClause: 'TOTAL_SPEND > 1000' }
+      })
+      addResult('Count Query', !error, data, error?.message)
+    }
+    
+    async function testPreview() {
+      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
+        body: { type: 'preview', limit: 5 }
+      })
+      addResult('Preview Query', !error, data, error?.message)
+    }
+    
+    async function testCustom() {
+      const query = document.getElementById('custom-query').value
+      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
+        body: { type: 'execute', query }
+      })
+      addResult('Custom Query', !error, data, error?.message)
+    }
+    
+    async function runAllTests() {
+      await testSchema()
+      await testCount()
+      await testPreview()
+    }
+    
+    // Check auth on load
+    checkAuth()
+  </script>
+</body>
+</html>

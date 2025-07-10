@@ -1,8 +1,0 @@
-{
-  "name": "snowflake-query",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "snowflake-sdk": "^1.9.0"
-  }
-}

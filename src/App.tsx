@@ -6,7 +6,8 @@ import {
   Mail, 
   Menu, 
   X, 
-  LogOut
+  LogOut,
+  Database
 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { AuthForm } from './components/AuthForm'
@@ -15,6 +16,7 @@ import { Dashboard } from './pages/Dashboard'
 import { Campaigns } from './pages/Campaigns'
 import { Segments } from './pages/Segments'
 import { Chat } from './pages/Chat'
+import SnowflakeTest from './pages/SnowflakeTest'
 import { logger } from './lib/logger'
 
 function App() {
@@ -63,6 +65,7 @@ function App() {
     { id: 'campaigns', name: 'Campaigns', icon: Mail },
     { id: 'segments', name: 'Segments', icon: Users },
     { id: 'chat', name: 'Leia', icon: MessageSquare },
+    { id: 'snowflake', name: 'Snowflake Test', icon: Database },
   ]
 
   return (
@@ -156,6 +159,7 @@ function App() {
               {activeTab === 'campaigns' && <Campaigns />}
               {activeTab === 'segments' && <Segments />}
               {activeTab === 'chat' && <Chat />}
+              {activeTab === 'snowflake' && <SnowflakeTest />}
             </ErrorBoundary>
           </main>
         </div>
