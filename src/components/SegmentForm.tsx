@@ -239,8 +239,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
       filterGroupsCount: filterGroups.length
     })
     
-    const segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at'> = {
-      user_id: '', // Will be set by API
+    const segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at' | 'user_id'> & { user_id?: string } = {
       name: formData.name,
       description: formData.description,
       type: formData.type as 'behavioral' | 'predictive',
@@ -250,6 +249,11 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
       },
       customer_count: estimatedCount,
       growth_rate: segment?.growth_rate
+    }
+    
+    // Only include user_id for new segments
+    if (!segment) {
+      segmentData.user_id = '' // Will be set by API
     }
     
     try {

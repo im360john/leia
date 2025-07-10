@@ -65,7 +65,7 @@ export function Segments() {
     }
   }
 
-  const handleUpdateSegment = async (id: string, segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at'>) => {
+  const handleUpdateSegment = async (id: string, segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     logger.info('Updating segment', {
       component: 'Segments',
       action: 'update',
