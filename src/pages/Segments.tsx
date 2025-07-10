@@ -65,7 +65,7 @@ export function Segments() {
     }
   }
 
-  const handleUpdateSegment = async (id: string, updates: Partial<Segment>) => {
+  const handleUpdateSegment = async (id: string, segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at'>) => {
     logger.info('Updating segment', {
       component: 'Segments',
       action: 'update',
@@ -73,7 +73,7 @@ export function Segments() {
     })
     
     try {
-      const updatedSegment = await segmentsAPI.update(id, updates)
+      const updatedSegment = await segmentsAPI.update(id, segmentData)
       setSegments(prev => prev.map(s => s.id === id ? updatedSegment : s))
       setEditingSegment(null)
       
@@ -268,7 +268,7 @@ export function Segments() {
         <SegmentForm
           segment={editingSegment}
           onSave={editingSegment ?
-            (updates) => handleUpdateSegment(editingSegment.id, updates) :
+            (segmentData) => handleUpdateSegment(editingSegment.id, segmentData) :
             handleCreateSegment
           }
           onCancel={() => {
