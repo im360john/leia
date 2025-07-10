@@ -12,6 +12,41 @@ interface ChatMessage {
   suggestions?: string[]
 }
 
+// Format message with basic markdown support
+function formatMessage(content: string): string {
+  // Convert markdown to HTML with better styling
+  let formatted = content
+    // Bold text
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+    // Italic text
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Code blocks
+    .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-800 text-white p-2 rounded my-2 overflow-x-auto"><code>$1</code></pre>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-200 px-1 py-0.5 rounded text-sm">$1</code>')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3 class="font-semibold mt-3 mb-1">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="font-bold text-lg mt-4 mb-2">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="font-bold text-xl mt-4 mb-2">$1</h1>')
+    // Line breaks - preserve single line breaks
+    .replace(/\n/g, '<br />')
+    
+  // Handle lists
+  formatted = formatted
+    // Unordered lists
+    .replace(/^- (.+)$/gm, '<li class="ml-4">• $1</li>')
+    .replace(/(<li class="ml-4">• [\s\S]*?<\/li>(\s*<br \/>)*)+/g, function(match) {
+      return '<ul class="my-2">' + match.replace(/<br \/>/g, '') + '</ul>'
+    })
+    // Ordered lists
+    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>')
+    .replace(/(<li class="ml-4">\d+[\s\S]*?<\/li>(\s*<br \/>)*)+/g, function(match) {
+      return '<ol class="my-2 list-decimal list-inside">' + match.replace(/<br \/>/g, '') + '</ol>'
+    })
+  
+  return formatted
+}
+
 export function Chat() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -102,7 +137,13 @@ export function Chat() {
         analytics: analytics.slice(0, 5)  // Send recent analytics
       }
       
-      const response = await chatAPI.sendMessage(chatInput, context)
+      // Include previous messages for context (last 5 messages)
+      const previousMessages = chatMessages.slice(-5).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }))
+      
+      const response = await chatAPI.sendMessage(chatInput, context, previousMessages)
       
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -168,7 +209,12 @@ export function Chat() {
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                   : 'bg-gray-100 text-gray-900'
               }`}>
-                <p className="text-sm">{message.content}</p>
+                <div 
+                  className="text-sm whitespace-pre-wrap" 
+                  dangerouslySetInnerHTML={{ 
+                    __html: formatMessage(message.content) 
+                  }} 
+                />
                 {message.suggestions && (
                   <div className="mt-3 space-y-2">
                     {message.suggestions.map((suggestion, index) => (

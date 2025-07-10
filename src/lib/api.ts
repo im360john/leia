@@ -12,7 +12,8 @@ export const chatAPI = {
       campaigns?: Campaign[]
       segments?: Segment[]
       analytics?: AnalyticsData[]
-    }
+    },
+    previousMessages?: Array<{ role: string; content: string }>
   ): Promise<{ response: string; suggestions?: string[] }> {
     try {
       // Call the Supabase Edge Function for AI chat
@@ -26,7 +27,8 @@ export const chatAPI = {
         },
         body: JSON.stringify({
           message,
-          context
+          context,
+          previousMessages
         })
       })
 

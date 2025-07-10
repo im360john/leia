@@ -11,6 +11,7 @@ interface ChatRequest {
     segments?: any[]
     analytics?: any[]
   }
+  previousMessages?: Array<{ role: string; content: string }>
 }
 
 interface OpenAIMessage {
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { message, context }: ChatRequest = await req.json()
+    const { message, context, previousMessages }: ChatRequest = await req.json()
 
     if (!message) {
       return new Response(
@@ -146,9 +147,21 @@ Deno.serve(async (req) => {
 
     // Prepare messages for OpenAI
     const messages: OpenAIMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: contextualMessage }
+      { role: 'system', content: SYSTEM_PROMPT }
     ]
+    
+    // Add previous messages if provided
+    if (previousMessages && previousMessages.length > 0) {
+      previousMessages.forEach(msg => {
+        messages.push({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        })
+      })
+    }
+    
+    // Add current message with context
+    messages.push({ role: 'user', content: contextualMessage })
 
     try {
       // Call OpenAI API
