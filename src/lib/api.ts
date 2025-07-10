@@ -91,37 +91,79 @@ export const campaignsAPI = {
       throw new Error('User not authenticated or invalid user ID')
     }
 
-    const { data, error } = await supabase
-      .from('campaigns')
-      .insert([{
-        ...campaign,
-        user_id: user.id
-      }])
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('Supabase error:', error)
-      throw new Error(`Failed to create campaign: ${error.message}`)
+    try {
+      const response = await supabase.functions.invoke('campaigns', {
+        body: {
+          method: 'POST',
+          ...campaign,
+          user_id: user.id
+        }
+      })
+
+      if (response.error) {
+        console.error('Edge function error:', response.error)
+        throw new Error(`Failed to create campaign: ${response.error.message}`)
+      }
+
+      return response.data
+    } catch (error) {
+      console.error('Failed to create campaign via edge function:', error)
+      
+      // Fallback to direct database insert if edge function fails
+      const { data, error: dbError } = await supabase
+        .from('campaigns')
+        .insert([{
+          ...campaign,
+          user_id: user.id
+        }])
+        .select()
+        .single()
+      
+      if (dbError) {
+        throw new Error(`Failed to create campaign: ${dbError.message}`)
+      }
+      
+      return data
     }
-    
-    return data
   },
 
   async update(id: string, updates: Partial<Campaign>): Promise<Campaign> {
-    const { data, error } = await supabase
-      .from('campaigns')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('Supabase error:', error)
-      throw new Error(`Failed to update campaign: ${error.message}`)
+    try {
+      console.log('Updating campaign via edge function:', { id, updates })
+      
+      // Use edge function to trigger email sending when status changes to active
+      const response = await supabase.functions.invoke('campaigns', {
+        body: {
+          method: 'PUT',
+          id,
+          ...updates
+        }
+      })
+
+      if (response.error) {
+        console.error('Edge function error:', response.error)
+        throw new Error(`Failed to update campaign: ${response.error.message}`)
+      }
+
+      console.log('Campaign update response:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('Failed to update campaign:', error)
+      
+      // Fallback to direct database update if edge function fails
+      const { data, error: dbError } = await supabase
+        .from('campaigns')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (dbError) {
+        throw new Error(`Failed to update campaign: ${dbError.message}`)
+      }
+      
+      return data
     }
-    
-    return data
   },
 
   async delete(id: string): Promise<void> {

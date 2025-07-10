@@ -119,8 +119,26 @@ Deno.serve(async (req) => {
     )
 
     const { method } = req
+    
+    // If invoked via supabase.functions.invoke, check for method in body
+    let actualMethod = method
+    if (method === 'POST') {
+      const bodyText = await req.text()
+      const body = bodyText ? JSON.parse(bodyText) : {}
+      if (body.method) {
+        actualMethod = body.method
+        // Remove method from body for further processing
+        delete body.method
+        // Create new request with cleaned body
+        req = new Request(req.url, {
+          method: req.method,
+          headers: req.headers,
+          body: JSON.stringify(body)
+        })
+      }
+    }
 
-    switch (method) {
+    switch (actualMethod) {
       case 'GET': {
         const { data, error } = await supabaseClient
           .from('campaigns')
