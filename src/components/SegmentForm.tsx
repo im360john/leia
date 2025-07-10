@@ -5,7 +5,7 @@ import { logger } from '../lib/logger'
 
 interface SegmentFormProps {
   segment?: Segment | null
-  onSave: (data: Omit<Segment, 'id' | 'created_at' | 'updated_at'>) => void
+  onSave: (data: Omit<Segment, 'id' | 'created_at' | 'updated_at'>) => void | Promise<void>
   onCancel: () => void
 }
 
@@ -122,6 +122,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
 
   const [activeTab, setActiveTab] = useState<keyof typeof FILTER_FIELDS>('customer')
   const [estimatedCount, setEstimatedCount] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const addFilterGroup = () => {
     const newGroup: FilterGroup = {
@@ -195,8 +196,12 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
     setEstimatedCount(Math.floor(baseCount * (1 - reduction)))
   }, [filterGroups])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (isSubmitting) return // Prevent double submission
+    
+    setIsSubmitting(true)
     
     logger.debug('Segment form submitted', {
       component: 'SegmentForm',
@@ -217,7 +222,11 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
       growth_rate: segment?.growth_rate
     }
     
-    onSave(segmentData)
+    try {
+      await onSave(segmentData)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const renderValueInput = (group: FilterGroup, rule: FilterRule) => {
@@ -229,6 +238,35 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
 
     switch (fieldInfo?.type) {
       case 'number':
+        if (rule.operator === 'between') {
+          // Handle between with two values
+          const values = typeof rule.value === 'string' ? rule.value.split(',') : ['', '']
+          return (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={values[0] || ''}
+                onChange={(e) => {
+                  const newValue = `${e.target.value},${values[1] || ''}`
+                  updateRule(group.id, rule.id, { value: newValue })
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Min"
+              />
+              <span className="text-gray-500">and</span>
+              <input
+                type="number"
+                value={values[1] || ''}
+                onChange={(e) => {
+                  const newValue = `${values[0] || ''},${e.target.value}`
+                  updateRule(group.id, rule.id, { value: newValue })
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Max"
+              />
+            </div>
+          )
+        }
         return (
           <input
             type="number"
@@ -240,6 +278,33 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
         )
       
       case 'date':
+        if (rule.operator === 'between') {
+          // Handle between with two dates
+          const values = typeof rule.value === 'string' ? rule.value.split(',') : ['', '']
+          return (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={values[0] || ''}
+                onChange={(e) => {
+                  const newValue = `${e.target.value},${values[1] || ''}`
+                  updateRule(group.id, rule.id, { value: newValue })
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+              <span className="text-gray-500">and</span>
+              <input
+                type="date"
+                value={values[1] || ''}
+                onChange={(e) => {
+                  const newValue = `${values[0] || ''},${e.target.value}`
+                  updateRule(group.id, rule.id, { value: newValue })
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+          )
+        }
         if (rule.operator === 'last_days' || rule.operator === 'next_days') {
           return (
             <input
@@ -547,9 +612,10 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {segment ? 'Update Segment' : 'Create Segment'}
+                {isSubmitting ? 'Saving...' : (segment ? 'Update Segment' : 'Create Segment')}
               </button>
             </div>
           </div>
