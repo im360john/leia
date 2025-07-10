@@ -8,6 +8,12 @@ interface TestResult {
   data?: any
   error?: string
   timestamp: string
+  details?: {
+    status?: number
+    statusText?: string
+    headers?: any
+    fullError?: any
+  }
 }
 
 export default function SnowflakeTest() {
@@ -16,30 +22,46 @@ export default function SnowflakeTest() {
   const [results, setResults] = useState<TestResult[]>([])
   const [customQuery, setCustomQuery] = useState('SELECT COUNT(*) FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT')
 
-  const addResult = (type: string, success: boolean, data?: any, error?: string) => {
+  const addResult = (type: string, success: boolean, data?: any, error?: string, details?: any) => {
     setResults(prev => [{
       type,
       success,
       data,
       error,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      details
     }, ...prev])
   }
 
   const testSchema = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('snowflake', {
+      console.log('Testing schema query...')
+      const response = await supabase.functions.invoke('snowflake', {
         body: {
           type: 'schema',
           table: 'CUSTOMER_FACT'
         }
       })
 
-      if (error) throw error
-      addResult('Schema Query', true, data)
+      console.log('Schema response:', response)
+      
+      if (response.error) {
+        throw {
+          message: response.error.message || 'Unknown error',
+          details: response.error,
+          status: response.error.status
+        }
+      }
+      
+      addResult('Schema Query', true, response.data)
     } catch (error: any) {
-      addResult('Schema Query', false, null, error.message)
+      console.error('Schema query error:', error)
+      addResult('Schema Query', false, null, error.message, {
+        fullError: error,
+        status: error.status,
+        details: error.details
+      })
     } finally {
       setLoading(false)
     }
@@ -48,17 +70,32 @@ export default function SnowflakeTest() {
   const testCount = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('snowflake', {
+      console.log('Testing count query...')
+      const response = await supabase.functions.invoke('snowflake', {
         body: {
           type: 'count',
           whereClause: 'TOTAL_SPEND > 1000'
         }
       })
 
-      if (error) throw error
-      addResult('Count Query', true, data)
+      console.log('Count response:', response)
+      
+      if (response.error) {
+        throw {
+          message: response.error.message || 'Unknown error',
+          details: response.error,
+          status: response.error.status
+        }
+      }
+      
+      addResult('Count Query', true, response.data)
     } catch (error: any) {
-      addResult('Count Query', false, null, error.message)
+      console.error('Count query error:', error)
+      addResult('Count Query', false, null, error.message, {
+        fullError: error,
+        status: error.status,
+        details: error.details
+      })
     } finally {
       setLoading(false)
     }
@@ -67,17 +104,32 @@ export default function SnowflakeTest() {
   const testPreview = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('snowflake', {
+      console.log('Testing preview query...')
+      const response = await supabase.functions.invoke('snowflake', {
         body: {
           type: 'preview',
           limit: 5
         }
       })
 
-      if (error) throw error
-      addResult('Preview Query', true, data)
+      console.log('Preview response:', response)
+      
+      if (response.error) {
+        throw {
+          message: response.error.message || 'Unknown error',
+          details: response.error,
+          status: response.error.status
+        }
+      }
+      
+      addResult('Preview Query', true, response.data)
     } catch (error: any) {
-      addResult('Preview Query', false, null, error.message)
+      console.error('Preview query error:', error)
+      addResult('Preview Query', false, null, error.message, {
+        fullError: error,
+        status: error.status,
+        details: error.details
+      })
     } finally {
       setLoading(false)
     }
@@ -86,17 +138,32 @@ export default function SnowflakeTest() {
   const testCustomQuery = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('snowflake', {
+      console.log('Testing custom query:', customQuery)
+      const response = await supabase.functions.invoke('snowflake', {
         body: {
           type: 'execute',
           query: customQuery
         }
       })
 
-      if (error) throw error
-      addResult('Custom Query', true, data)
+      console.log('Custom query response:', response)
+      
+      if (response.error) {
+        throw {
+          message: response.error.message || 'Unknown error',
+          details: response.error,
+          status: response.error.status
+        }
+      }
+      
+      addResult('Custom Query', true, response.data)
     } catch (error: any) {
-      addResult('Custom Query', false, null, error.message)
+      console.error('Custom query error:', error)
+      addResult('Custom Query', false, null, error.message, {
+        fullError: error,
+        status: error.status,
+        details: error.details
+      })
     } finally {
       setLoading(false)
     }
@@ -219,7 +286,24 @@ export default function SnowflakeTest() {
                   </div>
                   
                   {result.error ? (
-                    <p className="text-red-700 text-sm">{result.error}</p>
+                    <div className="space-y-2">
+                      <p className="text-red-700 text-sm font-medium">{result.error}</p>
+                      {result.details && (
+                        <div className="text-xs space-y-1">
+                          {result.details.status && (
+                            <p className="text-red-600">Status: {result.details.status}</p>
+                          )}
+                          {result.details.fullError && (
+                            <details className="cursor-pointer">
+                              <summary className="text-red-600 hover:underline">Show full error details</summary>
+                              <pre className="mt-2 p-2 bg-red-100 rounded overflow-x-auto">
+                                {JSON.stringify(result.details.fullError, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
                       {JSON.stringify(result.data, null, 2)}

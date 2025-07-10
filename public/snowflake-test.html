@@ -110,21 +110,40 @@
       clearResults()
     }
     
-    function addResult(type, success, data, error) {
+    function addResult(type, success, data, error, details) {
       const resultsDiv = document.getElementById('results')
       if (resultsDiv.querySelector('.text-gray-500')) {
         resultsDiv.innerHTML = ''
       }
       
+      console.log(`${type} result:`, { success, data, error, details })
+      
       const resultDiv = document.createElement('div')
       resultDiv.className = `p-4 rounded-lg border ${success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`
+      
+      let errorContent = ''
+      if (error) {
+        errorContent = `<p class="text-red-700 text-sm font-medium">${error}</p>`
+        if (details) {
+          errorContent += `
+            <div class="text-xs mt-2">
+              ${details.status ? `<p class="text-red-600">Status: ${details.status}</p>` : ''}
+              <details class="cursor-pointer mt-1">
+                <summary class="text-red-600 hover:underline">Show full error details</summary>
+                <pre class="mt-2 p-2 bg-red-100 rounded overflow-x-auto">${JSON.stringify(details, null, 2)}</pre>
+              </details>
+            </div>
+          `
+        }
+      }
+      
       resultDiv.innerHTML = `
         <div class="flex justify-between items-start mb-2">
           <h3 class="font-medium">${success ? '✅' : '❌'} ${type}</h3>
           <span class="text-sm text-gray-600">${new Date().toLocaleTimeString()}</span>
         </div>
         ${error ? 
-          `<p class="text-red-700 text-sm">${error}</p>` : 
+          errorContent : 
           `<pre class="text-xs bg-white p-2 rounded overflow-x-auto">${JSON.stringify(data, null, 2)}</pre>`
         }
       `
@@ -136,32 +155,76 @@
     }
     
     async function testSchema() {
-      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
-        body: { type: 'schema', table: 'CUSTOMER_FACT' }
-      })
-      addResult('Schema Query', !error, data, error?.message)
+      console.log('Testing schema query...')
+      try {
+        const response = await supabaseClient.functions.invoke('snowflake', {
+          body: { type: 'schema', table: 'CUSTOMER_FACT' }
+        })
+        console.log('Schema response:', response)
+        if (response.error) {
+          addResult('Schema Query', false, null, response.error.message, response.error)
+        } else {
+          addResult('Schema Query', true, response.data)
+        }
+      } catch (e) {
+        console.error('Schema error:', e)
+        addResult('Schema Query', false, null, e.message, e)
+      }
     }
     
     async function testCount() {
-      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
-        body: { type: 'count', whereClause: 'TOTAL_SPEND > 1000' }
-      })
-      addResult('Count Query', !error, data, error?.message)
+      console.log('Testing count query...')
+      try {
+        const response = await supabaseClient.functions.invoke('snowflake', {
+          body: { type: 'count', whereClause: 'TOTAL_SPEND > 1000' }
+        })
+        console.log('Count response:', response)
+        if (response.error) {
+          addResult('Count Query', false, null, response.error.message, response.error)
+        } else {
+          addResult('Count Query', true, response.data)
+        }
+      } catch (e) {
+        console.error('Count error:', e)
+        addResult('Count Query', false, null, e.message, e)
+      }
     }
     
     async function testPreview() {
-      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
-        body: { type: 'preview', limit: 5 }
-      })
-      addResult('Preview Query', !error, data, error?.message)
+      console.log('Testing preview query...')
+      try {
+        const response = await supabaseClient.functions.invoke('snowflake', {
+          body: { type: 'preview', limit: 5 }
+        })
+        console.log('Preview response:', response)
+        if (response.error) {
+          addResult('Preview Query', false, null, response.error.message, response.error)
+        } else {
+          addResult('Preview Query', true, response.data)
+        }
+      } catch (e) {
+        console.error('Preview error:', e)
+        addResult('Preview Query', false, null, e.message, e)
+      }
     }
     
     async function testCustom() {
       const query = document.getElementById('custom-query').value
-      const { data, error } = await supabaseClient.functions.invoke('snowflake', {
-        body: { type: 'execute', query }
-      })
-      addResult('Custom Query', !error, data, error?.message)
+      console.log('Testing custom query:', query)
+      try {
+        const response = await supabaseClient.functions.invoke('snowflake', {
+          body: { type: 'execute', query }
+        })
+        console.log('Custom response:', response)
+        if (response.error) {
+          addResult('Custom Query', false, null, response.error.message, response.error)
+        } else {
+          addResult('Custom Query', true, response.data)
+        }
+      } catch (e) {
+        console.error('Custom error:', e)
+        addResult('Custom Query', false, null, e.message, e)
+      }
     }
     
     async function runAllTests() {
