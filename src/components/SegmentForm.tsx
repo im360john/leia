@@ -135,6 +135,25 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Update form when segment prop changes (for editing)
+  React.useEffect(() => {
+    if (segment) {
+      setFormData({
+        name: segment.name || '',
+        description: segment.description || '',
+        type: segment.type || 'behavioral',
+      })
+      
+      if (segment.criteria?.filterGroups) {
+        setFilterGroups(segment.criteria.filterGroups)
+      }
+      
+      if (segment.criteria?.estimatedCount) {
+        setEstimatedCount(segment.criteria.estimatedCount)
+      }
+    }
+  }, [segment])
+
   const addFilterGroup = () => {
     const newGroup: FilterGroup = {
       id: Date.now().toString(),
