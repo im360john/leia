@@ -20,7 +20,7 @@ export default function SnowflakeTest() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<TestResult[]>([])
-  const [customQuery, setCustomQuery] = useState('SELECT COUNT(*) FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT')
+  const [customQuery, setCustomQuery] = useState("SELECT COUNT(*) FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT WHERE ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'")
 
   const addResult = (type: string, success: boolean, data?: any, error?: string, details?: any) => {
     setResults(prev => [{
@@ -79,7 +79,8 @@ export default function SnowflakeTest() {
         body: {
           sql: `SELECT COUNT(*) as customer_count 
                 FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
-                WHERE TOTAL_SPEND > 1000`,
+                WHERE ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'
+                AND TOTAL_SPEND > 1000`,
           database: 'RETAIL_ANALYTICS',
           schema: 'DBT_CUSTOMER',
           warehouse: 'RETAIL_ANALYTICS'
@@ -117,6 +118,7 @@ export default function SnowflakeTest() {
         body: {
           sql: `SELECT * 
                 FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
+                WHERE ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'
                 LIMIT 5`,
           database: 'RETAIL_ANALYTICS',
           schema: 'DBT_CUSTOMER',

@@ -26,42 +26,57 @@ interface FilterGroup {
 
 const FILTER_FIELDS = {
   customer: [
-    { value: 'email', label: 'Email', type: 'text', icon: Mail },
-    { value: 'first_name', label: 'First Name', type: 'text', icon: User },
-    { value: 'last_name', label: 'Last Name', type: 'text', icon: User },
-    { value: 'created_at', label: 'Account Created', type: 'date', icon: Calendar },
-    { value: 'last_login', label: 'Last Login', type: 'date', icon: Clock },
-    { value: 'last_visit_date', label: 'Last Visit Date', type: 'date', icon: Clock },
-    { value: 'signup_date', label: 'Signup Date', type: 'date', icon: Calendar },
-    { value: 'location', label: 'Location', type: 'text', icon: MapPin },
-    { value: 'age', label: 'Age', type: 'number', icon: User },
-    { value: 'gender', label: 'Gender', type: 'select', icon: User, options: ['Male', 'Female', 'Other'] },
-    { value: 'patient_type', label: 'Patient Type', type: 'select', icon: User, options: ['ADULT', 'MEDICAL'] },
-    { value: 'verification_status', label: 'Verification Status', type: 'select', icon: User, options: ['VERIFIED', 'VERIFICATION_PENDING'] },
-    { value: 'customer_status', label: 'Customer Status', type: 'select', icon: User, options: ['ACTIVE', 'INACTIVE'] },
-    { value: 'rewards_balance', label: 'Rewards Balance', type: 'number', icon: DollarSign },
-    { value: 'customer_group', label: 'Customer Group', type: 'select', icon: Users, options: ['INDUSTRY', 'VIP', 'REGULAR'] },
+    // Personal Information
+    { value: 'FIRST_NAME', label: 'First Name', type: 'text', icon: User },
+    { value: 'LAST_NAME', label: 'Last Name', type: 'text', icon: User },
+    { value: 'EMAIL', label: 'Email', type: 'text', icon: Mail },
+    { value: 'PHONE', label: 'Phone', type: 'text', icon: User },
+    { value: 'GENDER', label: 'Gender', type: 'text', icon: User },
+    { value: 'DATE_OF_BIRTH', label: 'Date of Birth', type: 'date', icon: Calendar },
+    { value: 'CUSTOMER_STATUS', label: 'Customer Status', type: 'text', icon: User },
+    { value: 'CUSTOMER_TYPE', label: 'Customer Type', type: 'text', icon: User },
+    { value: 'CUSTOMER_GROUPS', label: 'Customer Groups', type: 'text', icon: Users },
+    { value: 'OPTED_IN', label: 'Opted In', type: 'select', icon: Mail, options: ['true', 'false'] },
+    { value: 'VIOLATIONS', label: 'Violations', type: 'number', icon: User },
+  ],
+  address: [
+    { value: 'CUSTOMER_ADDRESS', label: 'Full Address', type: 'text', icon: MapPin },
+    { value: 'ADDRESS_STREET_1', label: 'Street Address', type: 'text', icon: MapPin },
+    { value: 'ADDRESS_CITY', label: 'City', type: 'text', icon: MapPin },
+    { value: 'ADDRESS_STATE', label: 'State', type: 'text', icon: MapPin },
+    { value: 'ADDRESS_COUNTRY', label: 'Country', type: 'text', icon: MapPin },
+    { value: 'ADDRESS_ZIPCODE', label: 'Zip Code', type: 'text', icon: MapPin },
   ],
   purchase: [
-    { value: 'total_spent', label: 'Total Spent', type: 'number', icon: DollarSign },
-    { value: 'order_count', label: 'Number of Orders', type: 'number', icon: ShoppingCart },
-    { value: 'last_order_date', label: 'Last Order Date', type: 'date', icon: Calendar },
-    { value: 'first_order_date', label: 'First Order Date', type: 'date', icon: Calendar },
-    { value: 'average_order_value', label: 'Average Order Value', type: 'number', icon: DollarSign },
-    { value: 'product_category', label: 'Product Category', type: 'select', icon: ShoppingCart, options: ['BEVERAGE', 'PLANT', 'PREROLL', 'MERCH', 'NON-INV', 'TINCTURE', 'MISC', 'TOPICAL', 'CARTRIDGE', 'FLOWER', 'PILL', 'EXTRACT', 'EDIBLE'] },
-    { value: 'payment_method', label: 'Payment Method', type: 'select', icon: DollarSign, options: ['CASH', 'ACH', 'DEBIT', 'CASHLESS ATM', 'POINTS', 'CREDIT', 'OTHER'] },
-    { value: 'order_source', label: 'Order Source', type: 'select', icon: ShoppingCart, options: ['IN-STORE', 'KIOSK', 'ECOMMERCE'] },
-    { value: 'revenue_source', label: 'Revenue Source', type: 'select', icon: Target, options: ['Treez Ecommerce', 'Weedmaps', 'Jane', 'Dutchie', 'Dispense', 'Leafly'] },
-    { value: 'product_brand', label: 'Product Brand', type: 'select', icon: ShoppingCart, options: ['710 LABS', 'A&A', 'ABSOLUTEXTRACTS', 'AIRFIELD SUPPLY CO.', 'ALIEN LABS', 'ALMORA', 'AVIATION', 'BEE WICK', 'CAKE', 'CALIVA', 'CANABOTANICA', 'CARE BY DESIGN', 'CLAYBOURNE', 'CONNECTED', 'CRUISERS', 'DABWOODS', 'DELI', 'DOOZIES', 'DR. NORM\'S', 'EVERYDAY', 'FLOWER COMPANY', 'FOCUS V', 'GOLD FLORA', 'GRAMLIN', 'Airfield Supply Co.', 'Canabotanica', 'Absolut Extracts', 'Aviation', 'Cake', 'Claybourne', 'Dabwoods', 'Focus V', 'Flower Company', 'Doozies', 'Bee Wick', 'Everyday'] },
+    { value: 'LIFETIME_NET_SALES', label: 'Lifetime Net Sales', type: 'number', icon: DollarSign },
+    { value: 'LIFETIME_GROSS_SALES', label: 'Lifetime Gross Sales', type: 'number', icon: DollarSign },
+    { value: 'LIFETIME_DISCOUNTS', label: 'Lifetime Discounts', type: 'number', icon: DollarSign },
+    { value: 'LIFETIME_TRANSACTIONS', label: 'Lifetime Transactions', type: 'number', icon: ShoppingCart },
+    { value: 'LIFETIME_GROSS_RECEIPTS', label: 'Lifetime Gross Receipts', type: 'number', icon: DollarSign },
+    { value: 'TOTAL_VISITS', label: 'Total Visits', type: 'number', icon: ShoppingCart },
+    { value: 'TOTAL_VISITS_WITH_PURCHASES', label: 'Visits with Purchases', type: 'number', icon: ShoppingCart },
+    { value: 'NEVER_MADE_PURCHASE', label: 'Never Made Purchase', type: 'select', icon: ShoppingCart, options: ['true', 'false'] },
+    { value: 'REWARDS_POINTS', label: 'Rewards Points', type: 'number', icon: DollarSign },
+    { value: 'REWARDS_REDEEMED_GROSS', label: 'Rewards Redeemed (Gross)', type: 'number', icon: DollarSign },
+    { value: 'REWARDS_REFUNDED', label: 'Rewards Refunded', type: 'number', icon: DollarSign },
+    { value: 'REWARDS_REDEEMED_NET', label: 'Rewards Redeemed (Net)', type: 'number', icon: DollarSign },
   ],
-  engagement: [
-    { value: 'email_opens', label: 'Email Opens', type: 'number', icon: Mail },
-    { value: 'email_clicks', label: 'Email Clicks', type: 'number', icon: Target },
-    { value: 'last_email_open', label: 'Last Email Open', type: 'date', icon: Calendar },
-    { value: 'email_subscribed', label: 'Email Subscribed', type: 'select', icon: Mail, options: ['Yes', 'No'] },
-    { value: 'engagement_score', label: 'Engagement Score', type: 'number', icon: Target },
-    { value: 'website_visits', label: 'Website Visits', type: 'number', icon: Target },
-    { value: 'last_website_visit', label: 'Last Website Visit', type: 'date', icon: Calendar },
+  dates: [
+    { value: 'LAST_VISIT', label: 'Last Visit', type: 'date', icon: Clock },
+    { value: 'SIGNUP_DATE', label: 'Signup Date', type: 'date', icon: Calendar },
+    { value: 'ORIGINAL_PROFILE_SIGNUP_DATE', label: 'Original Signup Date', type: 'date', icon: Calendar },
+    { value: 'CUSTOMER_FIRST_TICKET_TIMESTAMP', label: 'First Purchase Date', type: 'date', icon: Calendar },
+    { value: 'LAST_UPDATED_AT', label: 'Last Updated', type: 'date', icon: Clock },
+    { value: 'LAST_SYNC', label: 'Last Sync', type: 'date', icon: Clock },
+  ],
+  medical: [
+    { value: 'MEDICAL_ID', label: 'Medical ID', type: 'text', icon: User },
+    { value: 'CUSTOMER_MEDICAL_ID_EXP_DATE', label: 'Medical ID Expiration', type: 'date', icon: Calendar },
+    { value: 'CAREGIVER_NAME', label: 'Caregiver Name', type: 'text', icon: User },
+    { value: 'CUSTOMER_PHYSICIAN_FIRST_NAME', label: 'Physician First Name', type: 'text', icon: User },
+    { value: 'CUSTOMER_PHYSICIAN_LAST_NAME', label: 'Physician Last Name', type: 'text', icon: User },
+    { value: 'CUSTOMER_PHYSICIAN_PHONE', label: 'Physician Phone', type: 'text', icon: User },
+    { value: 'CUSTOMER_PHYSICIAN_EMAIL', label: 'Physician Email', type: 'text', icon: Mail },
   ]
 }
 
@@ -256,13 +271,15 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
 
   // Build WHERE clause from filter groups
   const buildWhereClause = (groups: FilterGroup[]): string => {
+    console.log('[SegmentForm] Building WHERE clause from groups:', groups)
+    
     const groupClauses = groups
       .filter(group => group.rules.length > 0)
       .map(group => {
         const ruleClauses = group.rules
           .filter(rule => rule.field && rule.operator && (rule.value || ['is_empty', 'is_not_empty'].includes(rule.operator)))
           .map(rule => {
-            const field = rule.field.toUpperCase()
+            const field = rule.field
             
             switch (rule.operator) {
               case 'equals':
@@ -317,7 +334,9 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
       })
       .filter(Boolean)
     
-    return groupClauses.join(' OR ')
+    const whereClause = groupClauses.join(' OR ')
+    console.log('[SegmentForm] Built WHERE clause:', whereClause)
+    return whereClause
   }
 
   // Update WHERE clause and fetch count when filters change
@@ -326,17 +345,32 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
       const newWhereClause = buildWhereClause(filterGroups)
       setWhereClause(newWhereClause)
       
+      console.log('[SegmentForm] Filter groups changed:', {
+        filterGroups,
+        whereClause: newWhereClause,
+        hasSnowflakeError: !!snowflakeError
+      })
+      
       if (newWhereClause && !snowflakeError) {
         setIsLoadingCount(true)
         try {
+          console.log('[SegmentForm] Fetching customer count for WHERE clause:', newWhereClause)
           const result = await snowflakeAPI.getCustomerCount(newWhereClause)
           setEstimatedCount(result.count)
+          
+          console.log('[SegmentForm] Customer count updated:', {
+            whereClause: newWhereClause,
+            count: result.count,
+            fullWhereClause: result.whereClause
+          })
+          
           logger.debug('Updated customer count', {
             component: 'SegmentForm',
             whereClause: newWhereClause,
             count: result.count
           })
         } catch (error) {
+          console.error('[SegmentForm] Failed to get customer count:', error)
           logger.error('Failed to get customer count', {
             component: 'SegmentForm',
             error
@@ -350,8 +384,19 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
           setIsLoadingCount(false)
         }
       } else if (!newWhereClause) {
-        // No filters, show total count
-        setEstimatedCount(0)
+        // No filters, get total count
+        console.log('[SegmentForm] No filters, fetching total count')
+        setIsLoadingCount(true)
+        try {
+          const result = await snowflakeAPI.getCustomerCount()
+          setEstimatedCount(result.count)
+          console.log('[SegmentForm] Total customer count:', result.count)
+        } catch (error) {
+          console.error('[SegmentForm] Failed to get total count:', error)
+          setEstimatedCount(0)
+        } finally {
+          setIsLoadingCount(false)
+        }
       }
     }
     

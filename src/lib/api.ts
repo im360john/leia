@@ -287,26 +287,42 @@ export const snowflakeAPI = {
   async getCustomerCount(whereClause?: string): Promise<{ count: number; whereClause: string }> {
     try {
       // Build the full WHERE clause with ORG_ID filter
-      const orgFilter = "org_id = '845b5f9a-f53f-4c43-8553-4a263b2a3bb5'"
+      const orgFilter = "ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'"
       const fullWhereClause = whereClause 
         ? `${orgFilter} AND (${whereClause})`
         : orgFilter
 
-      // Once FDW is set up, this will be:
-      // const { data, error } = await supabase
-      //   .from('snowflake.customer_fact')
-      //   .select('*', { count: 'exact', head: true })
-      //   .filter('raw_sql', fullWhereClause)
+      console.log('[SnowflakeAPI] Getting customer count with WHERE clause:', fullWhereClause)
+
+      // Execute the count query using Snowflake edge function
+      const response = await supabase.functions.invoke('snowflake', {
+        body: {
+          sql: `SELECT COUNT(*) as count 
+                FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
+                WHERE ${fullWhereClause}`,
+          database: 'RETAIL_ANALYTICS',
+          schema: 'DBT_CUSTOMER',
+          warehouse: 'RETAIL_ANALYTICS'
+        }
+      })
+
+      console.log('[SnowflakeAPI] Count query response:', response)
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to execute count query')
+      }
+
+      // Extract count from response
+      const count = response.data?.data?.data?.[0]?.COUNT || 0
       
-      // For now, return mock count
-      const mockCount = Math.floor(Math.random() * 50000) + 10000
+      console.log('[SnowflakeAPI] Customer count result:', count)
       
       return {
-        count: mockCount,
+        count: count,
         whereClause: fullWhereClause
       }
     } catch (error) {
-      console.error('Failed to get customer count:', error)
+      console.error('[SnowflakeAPI] Failed to get customer count:', error)
       throw error
     }
   },
