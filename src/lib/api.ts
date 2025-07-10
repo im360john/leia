@@ -257,17 +257,27 @@ export const segmentsAPI = {
 export const snowflakeAPI = {
   async getSchema(): Promise<{ columns: Array<{ name: string; type: string; nullable: boolean; comment: string }> }> {
     try {
-      const response = await supabase.functions.invoke('snowflake-query', {
-        body: {
-          type: 'schema'
-        }
-      })
-
-      if (response.error) {
-        throw new Error(`Failed to get schema: ${response.error.message}`)
-      }
-
-      return response.data.data
+      // Once FDW is set up, we'll query the information schema directly
+      // For now, return mock schema that represents typical customer data
+      const mockColumns = [
+        { name: 'customer_id', type: 'VARCHAR', nullable: false, comment: 'Unique customer identifier' },
+        { name: 'org_id', type: 'VARCHAR', nullable: false, comment: 'Organization identifier' },
+        { name: 'email', type: 'VARCHAR', nullable: true, comment: 'Customer email address' },
+        { name: 'first_name', type: 'VARCHAR', nullable: true, comment: 'Customer first name' },
+        { name: 'last_name', type: 'VARCHAR', nullable: true, comment: 'Customer last name' },
+        { name: 'state', type: 'VARCHAR', nullable: true, comment: 'Customer state' },
+        { name: 'city', type: 'VARCHAR', nullable: true, comment: 'Customer city' },
+        { name: 'total_spent', type: 'NUMBER', nullable: true, comment: 'Total amount spent' },
+        { name: 'order_count', type: 'NUMBER', nullable: true, comment: 'Number of orders' },
+        { name: 'avg_order_value', type: 'NUMBER', nullable: true, comment: 'Average order value' },
+        { name: 'last_order_date', type: 'DATE', nullable: true, comment: 'Date of last order' },
+        { name: 'customer_lifetime_value', type: 'NUMBER', nullable: true, comment: 'Predicted lifetime value' },
+        { name: 'preferred_category', type: 'VARCHAR', nullable: true, comment: 'Most purchased category' },
+        { name: 'loyalty_tier', type: 'VARCHAR', nullable: true, comment: 'Current loyalty tier' },
+        { name: 'created_at', type: 'TIMESTAMP', nullable: true, comment: 'Account creation date' },
+      ]
+      
+      return { columns: mockColumns }
     } catch (error) {
       console.error('Failed to get Snowflake schema:', error)
       throw error
@@ -276,18 +286,25 @@ export const snowflakeAPI = {
 
   async getCustomerCount(whereClause?: string): Promise<{ count: number; whereClause: string }> {
     try {
-      const response = await supabase.functions.invoke('snowflake-query', {
-        body: {
-          type: 'count',
-          whereClause
-        }
-      })
+      // Build the full WHERE clause with ORG_ID filter
+      const orgFilter = "org_id = '845b5f9a-f53f-4c43-8553-4a263b2a3bb5'"
+      const fullWhereClause = whereClause 
+        ? `${orgFilter} AND (${whereClause})`
+        : orgFilter
 
-      if (response.error) {
-        throw new Error(`Failed to get customer count: ${response.error.message}`)
+      // Once FDW is set up, this will be:
+      // const { data, error } = await supabase
+      //   .from('snowflake.customer_fact')
+      //   .select('*', { count: 'exact', head: true })
+      //   .filter('raw_sql', fullWhereClause)
+      
+      // For now, return mock count
+      const mockCount = Math.floor(Math.random() * 50000) + 10000
+      
+      return {
+        count: mockCount,
+        whereClause: fullWhereClause
       }
-
-      return response.data.data
     } catch (error) {
       console.error('Failed to get customer count:', error)
       throw error
@@ -296,19 +313,17 @@ export const snowflakeAPI = {
 
   async previewCustomers(whereClause?: string, limit: number = 10): Promise<{ rows: any[]; columns: string[] }> {
     try {
-      const response = await supabase.functions.invoke('snowflake-query', {
-        body: {
-          type: 'preview',
-          whereClause,
-          limit
-        }
-      })
-
-      if (response.error) {
-        throw new Error(`Failed to preview customers: ${response.error.message}`)
+      // Once FDW is set up, we'll query directly
+      // For now, return empty preview
+      const columns = [
+        'customer_id', 'email', 'first_name', 'last_name', 
+        'state', 'total_spent', 'order_count', 'last_order_date'
+      ]
+      
+      return {
+        rows: [],
+        columns
       }
-
-      return response.data.data
     } catch (error) {
       console.error('Failed to preview customers:', error)
       throw error

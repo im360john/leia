@@ -12,55 +12,64 @@ interface QueryRequest {
   limit?: number
 }
 
-// First, authenticate and get a session token
-async function authenticateSnowflake(
+interface SnowflakeResponse {
+  data?: any[][]
+  code?: string
+  message?: string
+  success?: boolean
+  statementHandle?: string
+  statementStatus?: string
+  statementStatusUrl?: string
+  resultSetMetaData?: {
+    numRows: number
+    format: string
+    rowType: Array<{
+      name: string
+      database: string
+      schema: string
+      table: string
+      type: string
+      scale: number
+      precision: number
+      nullable: boolean
+    }>
+  }
+}
+
+// Get JWT token using username/password
+async function getSnowflakeToken(
   account: string,
   username: string,
   password: string
 ): Promise<string> {
-  const loginUrl = `https://${account}.snowflakecomputing.com/session/v1/login-request`
+  const tokenUrl = `https://${account}.snowflakecomputing.com/oauth/token-request`
   
-  console.log(`Authenticating with Snowflake account: ${account}`)
+  const params = new URLSearchParams({
+    'grant_type': 'password',
+    'username': username,
+    'password': password,
+    'scope': 'session:role:PUBLIC'
+  })
   
-  const response = await fetch(loginUrl, {
+  const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
       'Accept': 'application/json',
-      'User-Agent': 'Supabase-Edge-Function/1.0',
     },
-    body: JSON.stringify({
-      data: {
-        CLIENT_APP_ID: 'Supabase-Edge-Function',
-        CLIENT_APP_VERSION: '1.0',
-        ACCOUNT_NAME: account,
-        LOGIN_NAME: username,
-        PASSWORD: password,
-      }
-    }),
+    body: params.toString(),
   })
-
-  const responseText = await response.text()
-  console.log('Auth response status:', response.status)
   
   if (!response.ok) {
-    console.error('Auth error response:', responseText)
-    throw new Error(`Authentication failed (${response.status}): ${responseText}`)
+    const errorText = await response.text()
+    console.error('Token request failed:', errorText)
+    throw new Error(`Failed to get Snowflake token: ${errorText}`)
   }
-
-  try {
-    const result = JSON.parse(responseText)
-    if (!result.data?.token) {
-      throw new Error('No token in authentication response')
-    }
-    return result.data.token
-  } catch (e) {
-    console.error('Failed to parse auth response:', e)
-    throw new Error(`Invalid authentication response: ${responseText}`)
-  }
+  
+  const tokenData = await response.json()
+  return tokenData.access_token
 }
 
-// Execute query using session token
 async function executeSnowflakeQuery(
   account: string,
   token: string,
@@ -68,68 +77,68 @@ async function executeSnowflakeQuery(
   database: string,
   schema: string,
   statement: string
-): Promise<any> {
-  const url = `https://${account}.snowflakecomputing.com/queries/v1/query-request`
+): Promise<SnowflakeResponse> {
+  const url = `https://${account}.snowflakecomputing.com/api/v2/statements`
   
   console.log(`Executing query on ${account}`)
-  console.log(`Query: ${statement.substring(0, 200)}...`)
+  console.log(`Database: ${database}, Schema: ${schema}, Warehouse: ${warehouse}`)
+  console.log(`Query: ${statement}`)
   
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Snowflake Token="${token}"`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': 'Supabase-Edge-Function/1.0',
+      'X-Snowflake-Authorization-Token-Type': 'KEYPAIR_JWT',
     },
     body: JSON.stringify({
-      sqlText: statement,
-      warehouse: warehouse,
-      database: database,
-      schema: schema,
+      statement,
+      timeout: 60,
+      database,
+      schema,
+      warehouse,
       role: 'PUBLIC',
-      bindings: {},
     }),
   })
 
   const responseText = await response.text()
-  console.log('Query response status:', response.status)
+  console.log('Response status:', response.status)
   
   if (!response.ok) {
-    console.error('Query error response:', responseText)
-    throw new Error(`Query failed (${response.status}): ${responseText}`)
+    console.error('Snowflake error response:', responseText)
+    throw new Error(`Snowflake API error (${response.status}): ${responseText}`)
   }
 
   try {
-    const result = JSON.parse(responseText)
+    const result = JSON.parse(responseText) as SnowflakeResponse
     
-    // Check if we need to poll for results
-    if (result.data?.queryId && !result.data?.rowset) {
+    // If query is still running, we need to poll for results
+    if (result.statementHandle && !result.data) {
       console.log('Query is running, polling for results...')
       
       // Wait a bit before polling
       await new Promise(resolve => setTimeout(resolve, 2000))
       
       // Poll for results
-      const resultUrl = `https://${account}.snowflakecomputing.com/queries/${result.data.queryId}/result`
+      const resultUrl = `https://${account}.snowflakecomputing.com/api/v2/statements/${result.statementHandle}`
       const pollResponse = await fetch(resultUrl, {
         headers: {
-          'Authorization': `Snowflake Token="${token}"`,
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
-          'User-Agent': 'Supabase-Edge-Function/1.0',
         },
       })
       
       if (pollResponse.ok) {
-        const pollResult = await pollResponse.json()
+        const pollResult = await pollResponse.json() as SnowflakeResponse
         return pollResult
       }
     }
     
     return result
   } catch (e) {
-    console.error('Failed to parse query response:', e)
-    throw new Error(`Invalid query response: ${responseText}`)
+    console.error('Failed to parse response:', e)
+    throw new Error(`Invalid response from Snowflake: ${responseText}`)
   }
 }
 
@@ -138,10 +147,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  let token: string | null = null
-
   try {
-    console.log('Snowflake query function invoked (session auth version)')
+    console.log('Snowflake query function invoked (JWT version)')
     
     // Get Snowflake credentials from environment
     const account = Deno.env.get('SNOWFLAKE_ACCOUNT') || ''
@@ -154,9 +161,10 @@ serve(async (req) => {
       throw new Error('Snowflake credentials not configured. Please set SNOWFLAKE_ACCOUNT, SNOWFLAKE_USERNAME, and SNOWFLAKE_PASSWORD.')
     }
 
-    // Authenticate and get session token
-    token = await authenticateSnowflake(account, username, password)
-    console.log('Successfully authenticated with Snowflake')
+    // Get JWT token
+    console.log('Getting Snowflake JWT token...')
+    const token = await getSnowflakeToken(account, username, password)
+    console.log('Successfully obtained JWT token')
 
     const { type, table, whereClause, limit = 100 } = await req.json() as QueryRequest
     console.log('Query type:', type)
@@ -192,10 +200,12 @@ serve(async (req) => {
           schemaQuery
         )
         
-        const schemaData = schemaResponse.data?.rowset || []
+        if (!schemaResponse.data) {
+          throw new Error('No schema data returned from Snowflake')
+        }
         
         result = {
-          columns: schemaData.map((row: any[]) => ({
+          columns: schemaResponse.data.map((row: any[]) => ({
             name: row[0],
             type: row[1],
             nullable: row[2] === 'YES',
@@ -226,10 +236,12 @@ serve(async (req) => {
           countQuery
         )
         
-        const countData = countResponse.data?.rowset || []
+        if (!countResponse.data || countResponse.data.length === 0) {
+          throw new Error('No count data returned from Snowflake')
+        }
         
         result = {
-          count: countData[0]?.[0] ? parseInt(countData[0][0]) : 0,
+          count: parseInt(countResponse.data[0][0]),
           whereClause: fullWhereClause,
         }
         break
@@ -257,11 +269,15 @@ serve(async (req) => {
           previewQuery
         )
         
-        const previewData = previewResponse.data?.rowset || []
-        const columnNames = previewResponse.data?.rowtype?.map((col: any) => col.name) || []
+        if (!previewResponse.data) {
+          throw new Error('No preview data returned from Snowflake')
+        }
+        
+        // Extract column names from metadata
+        const columnNames = previewResponse.resultSetMetaData?.rowType?.map(col => col.name) || []
         
         result = {
-          rows: previewData,
+          rows: previewResponse.data,
           columns: columnNames,
         }
         break
@@ -292,21 +308,5 @@ serve(async (req) => {
         status: 400,
       }
     )
-  } finally {
-    // Log out if we have a token
-    if (token) {
-      try {
-        const account = Deno.env.get('SNOWFLAKE_ACCOUNT') || ''
-        await fetch(`https://${account}.snowflakecomputing.com/session/logout-request`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Snowflake Token="${token}"`,
-            'User-Agent': 'Supabase-Edge-Function/1.0',
-          },
-        })
-      } catch (e) {
-        console.error('Logout error:', e)
-      }
-    }
   }
 })
