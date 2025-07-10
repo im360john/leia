@@ -112,16 +112,27 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
     type: segment?.type || 'behavioral' as const,
   })
 
-  const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([
-    {
+  const [filterGroups, setFilterGroups] = useState<FilterGroup[]>(() => {
+    // Load filter groups from existing segment if editing
+    if (segment?.criteria?.filterGroups) {
+      return segment.criteria.filterGroups
+    }
+    // Default for new segments
+    return [{
       id: '1',
       logic: 'AND',
       rules: []
-    }
-  ])
+    }]
+  })
 
   const [activeTab, setActiveTab] = useState<keyof typeof FILTER_FIELDS>('customer')
-  const [estimatedCount, setEstimatedCount] = useState(0)
+  const [estimatedCount, setEstimatedCount] = useState(() => {
+    // Load estimated count from existing segment if editing
+    if (segment?.criteria?.estimatedCount) {
+      return segment.criteria.estimatedCount
+    }
+    return 0
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const addFilterGroup = () => {
