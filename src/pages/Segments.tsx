@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Users, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
-import { segmentsAPI } from '../lib/api'
+import { segmentsAPI, snowflakeAPI } from '../lib/api'
 import { Segment } from '../lib/supabase'
 import { SegmentForm } from '../components/SegmentForm'
 import { logger } from '../lib/logger'
@@ -26,9 +26,30 @@ export function Segments() {
     
     try {
       const data = await segmentsAPI.getAll()
-      setSegments(data)
       
-      logger.info('Segments loaded', {
+      // Update customer counts for each segment using real Snowflake data
+      const segmentsWithUpdatedCounts = await Promise.all(
+        data.map(async (segment) => {
+          try {
+            if (segment.where_clause) {
+              console.log(`[Segments] Updating count for segment: ${segment.name}`)
+              const result = await snowflakeAPI.getCustomerCount(segment.where_clause)
+              return {
+                ...segment,
+                customer_count: result.count
+              }
+            }
+            return segment
+          } catch (error) {
+            console.error(`[Segments] Failed to update count for segment ${segment.name}:`, error)
+            return segment // Return original segment if count update fails
+          }
+        })
+      )
+      
+      setSegments(segmentsWithUpdatedCounts)
+      
+      logger.info('Segments loaded with updated counts', {
         component: 'Segments',
         count: data.length
       })

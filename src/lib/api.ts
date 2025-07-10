@@ -318,21 +318,15 @@ export const snowflakeAPI = {
         throw new Error(response.error.message || 'Failed to execute count query')
       }
 
-      // Extract count from response - try multiple paths
+      // Extract count from response
       let count = 0;
       
-      // Try different possible response structures
-      if (response.data?.success && response.data?.data) {
-        // If the response has a success flag and data
-        const responseData = response.data.data;
-        console.log('[SnowflakeAPI] Response data:', responseData);
-        
-        if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-          // Snowflake returns column names in uppercase
-          count = responseData.data[0].COUNT || responseData.data[0].count || responseData.data[0]['COUNT(*)'] || 0;
-        } else if (Array.isArray(responseData) && responseData.length > 0) {
-          count = responseData[0].COUNT || responseData[0].count || responseData[0]['COUNT(*)'] || 0;
-        }
+      // Snowflake returns data in a nested array structure
+      if (response.data?.success && response.data?.data?.data) {
+        // The count is in data.data[0][0] as a string
+        const countValue = response.data.data.data[0][0];
+        count = parseInt(countValue, 10) || 0;
+        console.log('[SnowflakeAPI] Raw count value:', countValue, 'Parsed count:', count);
       }
       
       console.log('[SnowflakeAPI] Extracted count:', count)
