@@ -53,7 +53,7 @@ serve(async (req) => {
       throw new Error('Missing required fields: campaignId, recipients, subject, htmlContent')
     }
 
-    const fromEmail = from || 'marketing@yourdomain.com'
+    const fromEmail = from || 'hello@leia-demo.com'
     const results = []
     const errors = []
 

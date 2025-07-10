@@ -12,6 +12,7 @@ export function Campaigns() {
   const [segments, setSegments] = useState<Segment[]>([])
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [isPolling, setIsPolling] = useState(false)
   
   // Form states
   const [showCampaignForm, setShowCampaignForm] = useState(false)
@@ -19,7 +20,46 @@ export function Campaigns() {
 
   useEffect(() => {
     loadData()
+    
+    // Check if any campaigns are in active state to start polling
+    const checkForActiveCampaigns = async () => {
+      const campaignsData = await campaignsAPI.getAll()
+      const hasActiveCampaigns = campaignsData.some(c => c.status === 'active' && c.sent_count > 0)
+      setIsPolling(hasActiveCampaigns)
+    }
+    
+    checkForActiveCampaigns()
   }, [])
+
+  // Poll for updates when campaigns are active
+  useEffect(() => {
+    if (!isPolling) return
+
+    const interval = setInterval(async () => {
+      logger.info('Polling for campaign updates', { component: 'Campaigns' })
+      
+      try {
+        const updatedCampaigns = await campaignsAPI.getAll()
+        setCampaigns(updatedCampaigns)
+        
+        // Stop polling if no campaigns are sending
+        const stillSending = updatedCampaigns.some(c => 
+          c.status === 'active' && 
+          c.sent_count > 0 && 
+          (!c.delivered_count || c.delivered_count < c.sent_count)
+        )
+        
+        if (!stillSending) {
+          logger.info('Stopping campaign polling - all emails delivered', { component: 'Campaigns' })
+          setIsPolling(false)
+        }
+      } catch (error) {
+        logger.error('Failed to poll campaigns', { component: 'Campaigns' }, error as Error)
+      }
+    }, 3000) // Poll every 3 seconds
+
+    return () => clearInterval(interval)
+  }, [isPolling])
 
   const loadData = async () => {
     logger.info('Loading campaigns data', { component: 'Campaigns' })
@@ -97,6 +137,11 @@ export function Campaigns() {
         component: 'Campaigns',
         campaignId: id
       })
+      
+      // Start polling if campaign is being activated
+      if (processedUpdates.status === 'active') {
+        setIsPolling(true)
+      }
     } catch (error) {
       logger.error('Failed to update campaign', {
         component: 'Campaigns',
@@ -164,7 +209,15 @@ export function Campaigns() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Email Campaigns</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold text-gray-900">Email Campaigns</h2>
+          {isPolling && (
+            <div className="flex items-center gap-2 text-sm text-purple-600 bg-purple-100 px-3 py-1 rounded-full">
+              <div className="animate-pulse w-2 h-2 bg-purple-600 rounded-full"></div>
+              <span>Updating delivery status...</span>
+            </div>
+          )}
+        </div>
         <button
           onClick={() => setShowCampaignForm(true)}
           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center gap-2"

@@ -117,7 +117,7 @@ export const WelcomeEmailTemplate: React.FC<WelcomeEmailProps> = ({
               <li>Complete your profile</li>
               <li>Create your first campaign</li>
               <li>Explore our analytics dashboard</li>
-              <li>Connect with our AI marketing strategist</li>
+              <li>Connect with Leia, your marketing strategist</li>
             </ul>
 
             <Section style={buttonSection}>

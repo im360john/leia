@@ -65,20 +65,26 @@ async function triggerEmailSending(supabaseClient: any, campaign: any) {
 }
 
 function generateMockRecipients(count: number) {
+  // For POC testing, always send to john@treez.io
+  const testEmail = 'john@treez.io'
+  
+  // Generate multiple test recipients but all going to the same email
   const recipients = []
   const firstNames = ['John', 'Jane', 'Mike', 'Sarah', 'David', 'Emily', 'Chris', 'Lisa']
   const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller']
   
-  for (let i = 0; i < Math.min(count, 20); i++) { // Cap at 20 for POC
+  // Only send 3 test emails for POC to avoid spam
+  for (let i = 0; i < Math.min(count, 3); i++) {
     const firstName = firstNames[Math.floor(Math.random() * firstNames.length)]
     const lastName = lastNames[Math.floor(Math.random() * lastNames.length)]
     recipients.push({
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`,
+      email: testEmail, // Always use test email
       name: `${firstName} ${lastName}`,
       customData: {
         firstName,
         lastName,
         customerSince: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+        originalEmail: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`, // Track what email it would have been
       }
     })
   }

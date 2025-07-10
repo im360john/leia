@@ -53,7 +53,7 @@ export function Chat() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: "Hello! I'm your AI Marketing Strategist. I can help you create campaigns, analyze customer segments, and optimize your marketing strategy. What would you like to work on today?",
+      content: "Hello! I'm Leia, your marketing strategist. I can help you create campaigns, analyze customer segments, and optimize your marketing strategy. What would you like to work on today?",
       role: 'assistant',
       timestamp: new Date().toISOString(),
       suggestions: [
@@ -202,7 +202,7 @@ export function Chat() {
               <MessageSquare className="w-5 h-5 text-white" />
             </div>
             <div className="ml-3">
-              <h3 className="font-semibold text-gray-900">AI Marketing Strategist</h3>
+              <h3 className="font-semibold text-gray-900">Leia</h3>
               <p className="text-sm text-gray-600">Your intelligent marketing assistant</p>
             </div>
           </div>

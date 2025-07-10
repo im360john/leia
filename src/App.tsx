@@ -62,7 +62,7 @@ function App() {
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
     { id: 'campaigns', name: 'Campaigns', icon: Mail },
     { id: 'segments', name: 'Segments', icon: Users },
-    { id: 'chat', name: 'AI Strategist', icon: MessageSquare },
+    { id: 'chat', name: 'Leia', icon: MessageSquare },
   ]
 
   return (
@@ -143,7 +143,7 @@ function App() {
                   <Menu className="w-6 h-6" />
                 </button>
                 <h1 className="ml-4 lg:ml-0 text-2xl font-bold text-gray-900 capitalize">
-                  {activeTab === 'chat' ? 'AI Strategist' : activeTab}
+                  {activeTab === 'chat' ? 'Leia' : activeTab}
                 </h1>
               </div>
             </div>
