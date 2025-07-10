@@ -6,6 +6,99 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
+async function triggerEmailSending(supabaseClient: any, campaign: any) {
+  try {
+    console.log(`Triggering email send for campaign ${campaign.id}`)
+    
+    // Get target segment customers
+    let recipients = []
+    
+    if (campaign.target_segment) {
+      // Get segment details
+      const { data: segment } = await supabaseClient
+        .from('segments')
+        .select('*')
+        .eq('id', campaign.target_segment)
+        .single()
+      
+      if (segment) {
+        // For POC, we'll use mock customer data
+        // In production, this would query actual customer data based on segment criteria
+        recipients = generateMockRecipients(segment.customer_count || 10)
+      }
+    } else {
+      // If no segment, use a small set of test recipients
+      recipients = generateMockRecipients(5)
+    }
+
+    // Call the send-email edge function
+    const sendEmailUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`
+    const response = await fetch(sendEmailUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        campaignId: campaign.id,
+        recipients: recipients,
+        subject: campaign.subject || 'Marketing Update',
+        htmlContent: campaign.content,
+        textContent: stripHtml(campaign.content),
+        from: 'marketing@yourdomain.com',
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('Failed to trigger email send:', error)
+      throw new Error(`Failed to send emails: ${error}`)
+    }
+
+    const result = await response.json()
+    console.log(`Email sending triggered: ${result.sent} sent, ${result.failed} failed`)
+  } catch (error) {
+    console.error('Error triggering email send:', error)
+    // Don't throw here - we don't want to fail the campaign update
+    // In production, you might want to update the campaign status to 'failed'
+  }
+}
+
+function generateMockRecipients(count: number) {
+  const recipients = []
+  const firstNames = ['John', 'Jane', 'Mike', 'Sarah', 'David', 'Emily', 'Chris', 'Lisa']
+  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller']
+  
+  for (let i = 0; i < Math.min(count, 20); i++) { // Cap at 20 for POC
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)]
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)]
+    recipients.push({
+      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`,
+      name: `${firstName} ${lastName}`,
+      customData: {
+        firstName,
+        lastName,
+        customerSince: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+    })
+  }
+  
+  return recipients
+}
+
+function stripHtml(html: string): string {
+  // Simple HTML stripping for text version
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .trim()
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -66,6 +159,13 @@ Deno.serve(async (req) => {
         const body = await req.json()
         const { id, ...updates } = body
         
+        // Check if status is being changed to active
+        const previousCampaign = await supabaseClient
+          .from('campaigns')
+          .select('status, type')
+          .eq('id', id)
+          .single()
+
         const { data, error } = await supabaseClient
           .from('campaigns')
           .update(updates)
@@ -75,6 +175,13 @@ Deno.serve(async (req) => {
 
         if (error) {
           throw error
+        }
+
+        // If campaign is being activated and it's an email campaign, trigger email sending
+        if (previousCampaign.data?.status !== 'active' && 
+            updates.status === 'active' && 
+            data.type === 'email') {
+          await triggerEmailSending(supabaseClient, data)
         }
 
         return new Response(

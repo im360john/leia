@@ -24,6 +24,27 @@ export interface Campaign {
   open_rate?: number
   click_rate?: number
   revenue?: number
+  message_id?: string
+  delivered_count?: number
+  bounced_count?: number
+  template_id?: string
+  template_variables?: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignEmail {
+  id: string
+  campaign_id: string
+  email: string
+  message_id?: string
+  status: 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed'
+  error_message?: string
+  sent_at?: string
+  delivered_at?: string
+  opened_at?: string
+  clicked_at?: string
+  bounced_at?: string
   created_at: string
   updated_at: string
 }
