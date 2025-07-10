@@ -39,8 +39,12 @@ export default function SnowflakeTest() {
       console.log('Testing schema query...')
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          type: 'schema',
-          table: 'CUSTOMER_FACT'
+          sql: `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COMMENT 
+                FROM RETAIL_ANALYTICS.INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'CUSTOMER_FACT' 
+                AND TABLE_SCHEMA = 'DBT_CUSTOMER'`,
+          database: 'RETAIL_ANALYTICS',
+          warehouse: 'COMPUTE_WH'
         }
       })
 
@@ -73,8 +77,12 @@ export default function SnowflakeTest() {
       console.log('Testing count query...')
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          type: 'count',
-          whereClause: 'TOTAL_SPEND > 1000'
+          sql: `SELECT COUNT(*) as customer_count 
+                FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
+                WHERE TOTAL_SPEND > 1000`,
+          database: 'RETAIL_ANALYTICS',
+          schema: 'DBT_CUSTOMER',
+          warehouse: 'COMPUTE_WH'
         }
       })
 
@@ -107,8 +115,12 @@ export default function SnowflakeTest() {
       console.log('Testing preview query...')
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          type: 'preview',
-          limit: 5
+          sql: `SELECT * 
+                FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
+                LIMIT 5`,
+          database: 'RETAIL_ANALYTICS',
+          schema: 'DBT_CUSTOMER',
+          warehouse: 'COMPUTE_WH'
         }
       })
 
@@ -141,8 +153,9 @@ export default function SnowflakeTest() {
       console.log('Testing custom query:', customQuery)
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          type: 'execute',
-          query: customQuery
+          sql: customQuery,
+          database: 'RETAIL_ANALYTICS',
+          warehouse: 'COMPUTE_WH'
         }
       })
 
