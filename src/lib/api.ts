@@ -294,12 +294,17 @@ export const snowflakeAPI = {
 
       console.log('[SnowflakeAPI] Getting customer count with WHERE clause:', fullWhereClause)
 
+      // Build the full SQL query
+      const sqlQuery = `SELECT COUNT(*) as count 
+                FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
+                WHERE ${fullWhereClause}`;
+      
+      console.log('[SnowflakeAPI] Full SQL query being sent to Snowflake:', sqlQuery);
+
       // Execute the count query using Snowflake edge function
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          sql: `SELECT COUNT(*) as count 
-                FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
-                WHERE ${fullWhereClause}`,
+          sql: sqlQuery,
           database: 'RETAIL_ANALYTICS',
           schema: 'DBT_CUSTOMER',
           warehouse: 'RETAIL_ANALYTICS'
