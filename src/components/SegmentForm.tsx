@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X, Plus, Trash2, Calendar, DollarSign, Mail, ShoppingCart, User, Users, MapPin, Clock, Target } from 'lucide-react'
 import { Segment } from '../lib/supabase'
 import { logger } from '../lib/logger'
+import { snowflakeAPI } from '../lib/api'
 
 interface SegmentFormProps {
   segment?: Segment | null
@@ -128,12 +129,17 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
   const [activeTab, setActiveTab] = useState<keyof typeof FILTER_FIELDS>('customer')
   const [estimatedCount, setEstimatedCount] = useState(() => {
     // Load estimated count from existing segment if editing
-    if (segment?.criteria?.estimatedCount) {
-      return segment.criteria.estimatedCount
+    if (segment?.customer_count) {
+      return segment.customer_count
     }
     return 0
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingSchema, setIsLoadingSchema] = useState(false)
+  const [isLoadingCount, setIsLoadingCount] = useState(false)
+  const [snowflakeColumns, setSnowflakeColumns] = useState<Array<{ name: string; type: string; nullable: boolean; comment: string }>>([])
+  const [whereClause, setWhereClause] = useState(segment?.where_clause || '')
+  const [snowflakeError, setSnowflakeError] = useState<string | null>(null)
 
   // Update form when segment prop changes (for editing)
   React.useEffect(() => {
@@ -148,11 +154,41 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
         setFilterGroups(segment.criteria.filterGroups)
       }
       
-      if (segment.criteria?.estimatedCount) {
-        setEstimatedCount(segment.criteria.estimatedCount)
+      if (segment.customer_count) {
+        setEstimatedCount(segment.customer_count)
+      }
+      
+      if (segment.where_clause) {
+        setWhereClause(segment.where_clause)
       }
     }
   }, [segment])
+
+  // Load Snowflake schema on mount
+  useEffect(() => {
+    const loadSchema = async () => {
+      setIsLoadingSchema(true)
+      setSnowflakeError(null)
+      try {
+        const schema = await snowflakeAPI.getSchema()
+        setSnowflakeColumns(schema.columns)
+        logger.info('Loaded Snowflake schema', { 
+          component: 'SegmentForm',
+          columnCount: schema.columns.length 
+        })
+      } catch (error) {
+        logger.error('Failed to load Snowflake schema', { 
+          component: 'SegmentForm',
+          error 
+        })
+        setSnowflakeError('Unable to connect to Snowflake. Using default fields.')
+      } finally {
+        setIsLoadingSchema(false)
+      }
+    }
+    
+    loadSchema()
+  }, [])
 
   const addFilterGroup = () => {
     const newGroup: FilterGroup = {
@@ -218,13 +254,110 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
     return null
   }
 
-  React.useEffect(() => {
-    // Mock calculation based on filter complexity
-    const totalRules = filterGroups.reduce((sum, group) => sum + group.rules.length, 0)
-    const baseCount = 10000
-    const reduction = Math.min(totalRules * 0.3, 0.9)
-    setEstimatedCount(Math.floor(baseCount * (1 - reduction)))
-  }, [filterGroups])
+  // Build WHERE clause from filter groups
+  const buildWhereClause = (groups: FilterGroup[]): string => {
+    const groupClauses = groups
+      .filter(group => group.rules.length > 0)
+      .map(group => {
+        const ruleClauses = group.rules
+          .filter(rule => rule.field && rule.operator && (rule.value || ['is_empty', 'is_not_empty'].includes(rule.operator)))
+          .map(rule => {
+            const field = rule.field.toUpperCase()
+            
+            switch (rule.operator) {
+              case 'equals':
+                return `${field} = '${rule.value}'`
+              case 'not_equals':
+                return `${field} != '${rule.value}'`
+              case 'contains':
+                return `${field} LIKE '%${rule.value}%'`
+              case 'not_contains':
+                return `${field} NOT LIKE '%${rule.value}%'`
+              case 'starts_with':
+                return `${field} LIKE '${rule.value}%'`
+              case 'ends_with':
+                return `${field} LIKE '%${rule.value}'`
+              case 'is_empty':
+                return `(${field} IS NULL OR ${field} = '')`
+              case 'is_not_empty':
+                return `(${field} IS NOT NULL AND ${field} != '')`
+              case 'greater_than':
+                return `${field} > ${rule.value}`
+              case 'greater_than_equal':
+                return `${field} >= ${rule.value}`
+              case 'less_than':
+                return `${field} < ${rule.value}`
+              case 'less_than_equal':
+                return `${field} <= ${rule.value}`
+              case 'between':
+                const values = String(rule.value).split(',')
+                return `${field} BETWEEN ${values[0]} AND ${values[1]}`
+              case 'after':
+                return `${field} > '${rule.value}'`
+              case 'before':
+                return `${field} < '${rule.value}'`
+              case 'last_days':
+                return `${field} >= DATEADD(day, -${rule.value}, CURRENT_DATE())`
+              case 'next_days':
+                return `${field} <= DATEADD(day, ${rule.value}, CURRENT_DATE())`
+              case 'in':
+                const inValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
+                return `${field} IN (${inValues})`
+              case 'not_in':
+                const notInValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
+                return `${field} NOT IN (${notInValues})`
+              default:
+                return null
+            }
+          })
+          .filter(Boolean)
+          .join(` ${group.logic} `)
+        
+        return ruleClauses ? `(${ruleClauses})` : null
+      })
+      .filter(Boolean)
+    
+    return groupClauses.join(' OR ')
+  }
+
+  // Update WHERE clause and fetch count when filters change
+  useEffect(() => {
+    const updateCount = async () => {
+      const newWhereClause = buildWhereClause(filterGroups)
+      setWhereClause(newWhereClause)
+      
+      if (newWhereClause && !snowflakeError) {
+        setIsLoadingCount(true)
+        try {
+          const result = await snowflakeAPI.getCustomerCount(newWhereClause)
+          setEstimatedCount(result.count)
+          logger.debug('Updated customer count', {
+            component: 'SegmentForm',
+            whereClause: newWhereClause,
+            count: result.count
+          })
+        } catch (error) {
+          logger.error('Failed to get customer count', {
+            component: 'SegmentForm',
+            error
+          })
+          // Fallback to mock calculation
+          const totalRules = filterGroups.reduce((sum, group) => sum + group.rules.length, 0)
+          const baseCount = 10000
+          const reduction = Math.min(totalRules * 0.3, 0.9)
+          setEstimatedCount(Math.floor(baseCount * (1 - reduction)))
+        } finally {
+          setIsLoadingCount(false)
+        }
+      } else if (!newWhereClause) {
+        // No filters, show total count
+        setEstimatedCount(0)
+      }
+    }
+    
+    const timeoutId = setTimeout(updateCount, 500) // Debounce
+    return () => clearTimeout(timeoutId)
+  }, [filterGroups, snowflakeError])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -239,7 +372,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
       filterGroupsCount: filterGroups.length
     })
     
-    const segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at' | 'user_id'> & { user_id?: string } = {
+    const segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at' | 'user_id'> & { user_id?: string; where_clause?: string } = {
       name: formData.name,
       description: formData.description,
       type: formData.type as 'behavioral' | 'predictive',
@@ -248,7 +381,8 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
         estimatedCount
       },
       customer_count: estimatedCount,
-      growth_rate: segment?.growth_rate
+      growth_rate: segment?.growth_rate,
+      where_clause: whereClause
     }
     
     // Only include user_id for new segments
@@ -506,7 +640,17 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
                   <h3 className="text-lg font-medium text-gray-900">Filter Rules</h3>
                   <div className="flex items-center gap-4">
                     <div className="text-sm text-gray-600">
-                      Estimated: <span className="font-medium text-purple-600">{estimatedCount.toLocaleString()}</span> customers
+                      {isLoadingCount ? (
+                        <span className="flex items-center gap-2">
+                          <span className="inline-block w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></span>
+                          Calculating...
+                        </span>
+                      ) : (
+                        <>
+                          Estimated: <span className="font-medium text-purple-600">{estimatedCount.toLocaleString()}</span> customers
+                          {snowflakeError && <span className="text-orange-600 ml-2">(Using demo data)</span>}
+                        </>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -634,7 +778,17 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
           {/* Footer */}
           <div className="p-6 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              This segment will include approximately <span className="font-medium text-purple-600">{estimatedCount.toLocaleString()}</span> customers
+              {isLoadingCount ? (
+                <span className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></span>
+                  Calculating customer count...
+                </span>
+              ) : (
+                <>
+                  This segment will include approximately <span className="font-medium text-purple-600">{estimatedCount.toLocaleString()}</span> customers
+                  {snowflakeError && <span className="text-orange-600 ml-2">(Demo mode)</span>}
+                </>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <button

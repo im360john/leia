@@ -45,7 +45,7 @@ async function triggerEmailSending(supabaseClient: any, campaign: any) {
         subject: campaign.subject || 'Marketing Update',
         htmlContent: campaign.content,
         textContent: stripHtml(campaign.content),
-        from: 'marketing@yourdomain.com',
+        from: 'onboarding@resend.dev', // Resend's test domain
       }),
     })
 

@@ -58,6 +58,9 @@ export interface Segment {
   criteria: Record<string, any>
   customer_count: number
   growth_rate?: number
+  where_clause?: string
+  last_count_update?: string
+  actual_customer_count?: number
   created_at: string
   updated_at: string
 }

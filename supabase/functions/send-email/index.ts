@@ -36,24 +36,36 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Send-email function invoked')
+    
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     if (!resendApiKey) {
       throw new Error('RESEND_API_KEY is not configured')
     }
+    
+    console.log('RESEND_API_KEY is configured')
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { campaignId, recipients, subject, htmlContent, textContent, from, replyTo } = await req.json() as EmailRequest
+    const requestData = await req.json() as EmailRequest
+    console.log('Request data:', {
+      campaignId: requestData.campaignId,
+      recipientsCount: requestData.recipients?.length || 0,
+      subject: requestData.subject,
+      hasHtmlContent: !!requestData.htmlContent
+    })
+    
+    const { campaignId, recipients, subject, htmlContent, textContent, from, replyTo } = requestData
 
     // Validate required fields
     if (!campaignId || !recipients || !subject || !htmlContent) {
       throw new Error('Missing required fields: campaignId, recipients, subject, htmlContent')
     }
 
-    const fromEmail = from || 'hello@leia-demo.com'
+    const fromEmail = from || 'onboarding@resend.dev' // Using Resend's test domain
     const results = []
     const errors = []
 
@@ -78,6 +90,9 @@ serve(async (req) => {
             })
           }
 
+          // Log email attempt
+          console.log(`Attempting to send email to ${recipient.email} for campaign ${campaignId}`)
+          
           // Send via Resend API
           const response = await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -101,8 +116,11 @@ serve(async (req) => {
           const data = await response.json() as ResendResponse
 
           if (!response.ok) {
+            console.error(`Resend API error for ${recipient.email}:`, data.error)
             throw new Error(data.error?.message || 'Failed to send email')
           }
+          
+          console.log(`Successfully sent email to ${recipient.email}, message ID: ${data.data?.id}`)
 
           // Store email record
           await supabaseClient

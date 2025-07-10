@@ -253,6 +253,69 @@ export const segmentsAPI = {
   }
 }
 
+// Snowflake API - Real-time customer data queries
+export const snowflakeAPI = {
+  async getSchema(): Promise<{ columns: Array<{ name: string; type: string; nullable: boolean; comment: string }> }> {
+    try {
+      const response = await supabase.functions.invoke('snowflake-query', {
+        body: {
+          type: 'schema'
+        }
+      })
+
+      if (response.error) {
+        throw new Error(`Failed to get schema: ${response.error.message}`)
+      }
+
+      return response.data.data
+    } catch (error) {
+      console.error('Failed to get Snowflake schema:', error)
+      throw error
+    }
+  },
+
+  async getCustomerCount(whereClause?: string): Promise<{ count: number; whereClause: string }> {
+    try {
+      const response = await supabase.functions.invoke('snowflake-query', {
+        body: {
+          type: 'count',
+          whereClause
+        }
+      })
+
+      if (response.error) {
+        throw new Error(`Failed to get customer count: ${response.error.message}`)
+      }
+
+      return response.data.data
+    } catch (error) {
+      console.error('Failed to get customer count:', error)
+      throw error
+    }
+  },
+
+  async previewCustomers(whereClause?: string, limit: number = 10): Promise<{ rows: any[]; columns: string[] }> {
+    try {
+      const response = await supabase.functions.invoke('snowflake-query', {
+        body: {
+          type: 'preview',
+          whereClause,
+          limit
+        }
+      })
+
+      if (response.error) {
+        throw new Error(`Failed to preview customers: ${response.error.message}`)
+      }
+
+      return response.data.data
+    } catch (error) {
+      console.error('Failed to preview customers:', error)
+      throw error
+    }
+  }
+}
+
 // Analytics API - Mock implementation with realistic data
 export const analyticsAPI = {
   async getMetrics(period: string = '30d'): Promise<AnalyticsData[]> {
