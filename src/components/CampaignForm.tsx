@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
+import { Eye } from 'lucide-react'
 import { Campaign, Segment } from '../lib/supabase'
 import { logger } from '../lib/logger'
+import { EmailPreview } from './EmailPreview'
 
 interface CampaignFormProps {
   campaign?: Campaign | null
@@ -23,6 +25,7 @@ export function CampaignForm({
     target_segment: campaign?.target_segment || '',
     status: campaign?.status || 'draft' as const
   })
+  const [showPreview, setShowPreview] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,6 +146,16 @@ export function CampaignForm({
             >
               Cancel
             </button>
+            {formData.type === 'email' && formData.subject && formData.content && (
+              <button
+                type="button"
+                onClick={() => setShowPreview(true)}
+                className="px-4 py-2 text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Preview
+              </button>
+            )}
             <button
               type="submit"
               className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200"
@@ -152,6 +165,15 @@ export function CampaignForm({
           </div>
         </form>
       </div>
+      
+      {/* Email Preview Modal */}
+      <EmailPreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        subject={formData.subject}
+        content={formData.content}
+        companyName="Leia"
+      />
     </div>
   )
 }

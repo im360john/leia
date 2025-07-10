@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Mail, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Edit, Trash2, Mail, ChevronLeft, ChevronRight, Send, CheckCircle, XCircle } from 'lucide-react'
 import { campaignsAPI, segmentsAPI } from '../lib/api'
 import { Campaign, Segment } from '../lib/supabase'
 import { CampaignForm } from '../components/CampaignForm'
@@ -226,7 +226,17 @@ export function Campaigns() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-500">Sent</p>
-                    <p className="font-medium">{campaign.sent_count?.toLocaleString() || '0'}</p>
+                    <p className="font-medium flex items-center gap-1">
+                      <Send className="w-3 h-3 text-blue-500" />
+                      {campaign.sent_count?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Delivered</p>
+                    <p className="font-medium flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3 text-green-500" />
+                      {campaign.delivered_count?.toLocaleString() || '0'}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500">Open Rate</p>
@@ -237,10 +247,38 @@ export function Campaigns() {
                     <p className="font-medium">{campaign.click_rate ? `${campaign.click_rate}%` : 'N/A'}</p>
                   </div>
                   <div>
+                    <p className="text-gray-500">Bounced</p>
+                    <p className="font-medium flex items-center gap-1">
+                      <XCircle className="w-3 h-3 text-red-500" />
+                      {campaign.bounced_count?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-gray-500">Revenue</p>
                     <p className="font-medium">${campaign.revenue?.toLocaleString() || '0'}</p>
                   </div>
                 </div>
+
+                {/* Email Delivery Status Bar */}
+                {campaign.sent_count > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span>Delivery Status</span>
+                      <span>{((campaign.delivered_count || 0) / campaign.sent_count * 100).toFixed(0)}% delivered</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-500 h-2 rounded-full relative" style={{ 
+                        width: `${Math.min(((campaign.delivered_count || 0) / campaign.sent_count * 100), 100)}%` 
+                      }}>
+                        {campaign.bounced_count > 0 && (
+                          <div className="absolute right-0 top-0 bg-red-500 h-2 rounded-r-full" style={{
+                            width: `${(campaign.bounced_count / campaign.sent_count * 100)}%`
+                          }}></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500">
