@@ -307,15 +307,30 @@ export const snowflakeAPI = {
       })
 
       console.log('[SnowflakeAPI] Count query response:', response)
+      console.log('[SnowflakeAPI] Response data structure:', JSON.stringify(response.data, null, 2))
 
       if (response.error) {
         throw new Error(response.error.message || 'Failed to execute count query')
       }
 
-      // Extract count from response
-      const count = response.data?.data?.data?.[0]?.COUNT || 0
+      // Extract count from response - try multiple paths
+      let count = 0;
       
-      console.log('[SnowflakeAPI] Customer count result:', count)
+      // Try different possible response structures
+      if (response.data?.success && response.data?.data) {
+        // If the response has a success flag and data
+        const responseData = response.data.data;
+        console.log('[SnowflakeAPI] Response data:', responseData);
+        
+        if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+          // Snowflake returns column names in uppercase
+          count = responseData.data[0].COUNT || responseData.data[0].count || responseData.data[0]['COUNT(*)'] || 0;
+        } else if (Array.isArray(responseData) && responseData.length > 0) {
+          count = responseData[0].COUNT || responseData[0].count || responseData[0]['COUNT(*)'] || 0;
+        }
+      }
+      
+      console.log('[SnowflakeAPI] Extracted count:', count)
       
       return {
         count: count,
