@@ -44,7 +44,7 @@ export default function SnowflakeTest() {
                 WHERE TABLE_NAME = 'CUSTOMER_FACT' 
                 AND TABLE_SCHEMA = 'DBT_CUSTOMER'`,
           database: 'RETAIL_ANALYTICS',
-          warehouse: 'COMPUTE_WH'
+          warehouse: 'RETAIL_ANALYTICS'
         }
       })
 
@@ -82,7 +82,7 @@ export default function SnowflakeTest() {
                 WHERE TOTAL_SPEND > 1000`,
           database: 'RETAIL_ANALYTICS',
           schema: 'DBT_CUSTOMER',
-          warehouse: 'COMPUTE_WH'
+          warehouse: 'RETAIL_ANALYTICS'
         }
       })
 
@@ -120,7 +120,7 @@ export default function SnowflakeTest() {
                 LIMIT 5`,
           database: 'RETAIL_ANALYTICS',
           schema: 'DBT_CUSTOMER',
-          warehouse: 'COMPUTE_WH'
+          warehouse: 'RETAIL_ANALYTICS'
         }
       })
 
@@ -155,7 +155,7 @@ export default function SnowflakeTest() {
         body: {
           sql: customQuery,
           database: 'RETAIL_ANALYTICS',
-          warehouse: 'COMPUTE_WH'
+          warehouse: 'RETAIL_ANALYTICS'
         }
       })
 
