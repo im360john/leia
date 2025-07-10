@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Plus, Trash2, Calendar, DollarSign, Mail, ShoppingCart, User, MapPin, Clock, Target } from 'lucide-react'
+import { X, Plus, Trash2, Calendar, DollarSign, Mail, ShoppingCart, User, Users, MapPin, Clock, Target } from 'lucide-react'
 import { Segment } from '../lib/supabase'
 import { logger } from '../lib/logger'
 
