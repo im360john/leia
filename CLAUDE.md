@@ -8,7 +8,9 @@ This guide helps AI assistants understand and work with the Leia marketing autom
 - **Frontend**: React 18 + TypeScript + Vite
 - **Styling**: Tailwind CSS
 - **Backend**: Supabase (PostgreSQL + Auth + Edge Functions)
-- **AI Integration**: OpenAI API for marketing strategist chat
+- **AI Integration**: OpenAI API for Leia marketing assistant
+- **Version Control**: Git (GitHub repository)
+- **Deployment**: Supabase project ID: `ievsqjsqurnvsbzczuhc`
 
 ## Architecture Summary
 
@@ -37,7 +39,7 @@ leia/
 │   │   ├── Dashboard.tsx # Overview with stats
 │   │   ├── Campaigns.tsx # Email campaigns + pagination
 │   │   ├── Segments.tsx  # Customer segments + pagination
-│   │   └── Chat.tsx      # AI marketing strategist
+│   │   └── Chat.tsx      # Leia marketing assistant
 │   ├── lib/
 │   │   ├── api.ts        # API layer (campaigns, segments, analytics, chat)
 │   │   ├── supabase.ts   # Supabase client + TypeScript types
@@ -129,7 +131,7 @@ interface Segment {
 - Authentication with Supabase Auth
 - CRUD operations for campaigns and segments
 - Real-time dashboard with stats
-- AI chat integration (with fallback)
+- Leia chat integration (with fallback)
 - Pagination for lists
 - Error boundaries
 - Comprehensive logging
@@ -140,16 +142,22 @@ interface Segment {
 - Open CORS policy (`*`) in edge functions
 - No rate limiting
 - Mock data for analytics
-- No email sending (just campaign creation)
+- Test mode email sending (all emails go to john@treez.io)
 - Basic segment filtering UI (complex but not functional)
 
 ### 🚫 Not Implemented
-- Actual email delivery
+- Production email delivery (currently in test mode)
 - Real customer data
 - Advanced analytics
 - A/B testing
 - Automation workflows
 - Team collaboration
+
+### ✅ Recently Added
+- Email integration with Resend
+- Real-time delivery tracking
+- Email preview functionality
+- Webhook processing for email events
 
 ## Development Workflow
 
@@ -171,6 +179,48 @@ npm run lint
 npm run build
 ```
 
+### Git Workflow
+```bash
+# Stage changes
+git add -A
+
+# Commit with descriptive message
+git commit -m "feat: add feature description"
+
+# Push to remote
+git push origin branch-name
+
+# Current branch: refactor/modular-architecture
+# Main branch: main
+```
+
+### Supabase CLI Commands
+```bash
+# Link to project (already linked)
+npx supabase link --project-ref ievsqjsqurnvsbzczuhc
+
+# Deploy edge functions
+npx supabase functions deploy function-name --no-verify-jwt
+
+# Apply database migrations
+npx supabase db push
+
+# Set edge function secrets
+npx supabase secrets set SECRET_NAME=value
+
+# List deployed functions
+npx supabase functions list
+
+# Common functions to deploy:
+# - campaigns
+# - segments
+# - ai-chat
+# - send-email
+# - resend-webhook
+# - analytics
+# - dashboard
+```
+
 ### Environment Variables
 ```env
 VITE_SUPABASE_URL=your_supabase_url
@@ -182,6 +232,7 @@ Run migrations in order:
 1. `20250706013524_pink_lantern.sql` - Demo user setup
 2. `20250706014722_square_king.sql` - Main schema
 3. `20250706014913_silent_cliff.sql` - Sample data
+4. `20250710142521_email_tracking.sql` - Email tracking tables
 
 ## Common Tasks
 
@@ -306,7 +357,10 @@ Currently manual testing. For future:
 - `lib/api.ts` - API integration layer
 - `lib/logger.ts` - Logging utility
 - `components/ErrorBoundary.tsx` - Error handling
+- `components/EmailPreview.tsx` - Email preview modal
+- `lib/emailTemplates.tsx` - React Email templates
 - `DEPLOY_TO_RENDER.md` - Deployment guide
+- `MIGRATION_INSTRUCTIONS.md` - Manual migration guide
 
 ## Session Context
 
@@ -316,5 +370,15 @@ When starting a new session:
 3. Each page/feature should be independently evolvable
 4. Type safety is important but not at the cost of velocity
 5. Logging is crucial for debugging in POC phase
+6. Git operations (commit/push) are handled via CLI
+7. Supabase functions are deployed via CLI with project ref
 
 Remember: This is a rapidly iterating POC. Make pragmatic decisions that balance code quality with development speed.
+
+## Project Information
+
+- **Project Name**: Leia
+- **Supabase Project ID**: ievsqjsqurnvsbzczuhc
+- **GitHub Repository**: im360john/leia
+- **Current Branch**: refactor/modular-architecture
+- **Test Email**: john@treez.io (all emails in test mode go here)
