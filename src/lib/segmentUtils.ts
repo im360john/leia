@@ -6,7 +6,7 @@ export interface FilterRule {
   operator: string
   value: string | number
   valueType: 'text' | 'number' | 'date' | 'select'
-  table?: 'customer' | 'sales'
+  table?: 'customer' | 'sales' | 'product'
 }
 
 export interface FilterGroup {
@@ -289,4 +289,91 @@ export function buildSegmentAnalyticsQuery(
     salesQuery,
     trendQuery
   }
+}
+
+// Build a complete product count query
+export function buildProductCountQuery(filterGroups: FilterGroup[]): string {
+  const conditions: string[] = []
+  const orgFilter = '"Org Id" = \'0273cbe1-667c-4421-a875-d65afff0280b\''
+  
+  // Process each filter group
+  filterGroups.forEach((group) => {
+    const groupConditions = group.rules
+      .filter(rule => rule.field && rule.value)
+      .map(rule => {
+        const field = mapProductFieldToColumn(rule.field)
+        const operator = mapOperator(rule.operator)
+        let value = rule.value
+        
+        // Format value based on operator
+        if (operator.includes('LIKE')) {
+          value = `'%${value}%'`
+        } else if (operator === 'IN' || operator === 'NOT IN') {
+          const values = String(value).split(',').map(v => `'${v.trim()}'`).join(', ')
+          value = `(${values})`
+        } else if (rule.valueType === 'text' || rule.valueType === 'select') {
+          value = `'${value}'`
+        }
+        
+        return `"${field}" ${operator} ${value}`
+      })
+    
+    if (groupConditions.length > 0) {
+      conditions.push(`(${groupConditions.join(` ${group.logic} `)})`)
+    }
+  })
+  
+  const whereClause = conditions.length > 0 
+    ? `${orgFilter} AND (${conditions.join(' OR ')})`
+    : orgFilter
+  
+  return `
+    SELECT COUNT(DISTINCT "Product Id") as count 
+    FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+    WHERE ${whereClause}
+  `
+}
+
+// Map filter field names to product table column names
+function mapProductFieldToColumn(field: string): string {
+  const mapping: Record<string, string> = {
+    'STORE_NAME': 'Store Name',
+    'PRODUCT_BRAND': 'Product Brand',
+    'PRODUCT_TYPE': 'Product Type',
+    'PRODUCT_SUB_TYPE': 'Product Sub Type',
+    'PRODUCT_LINE': 'Product Line',
+    'PRODUCT_LINE_WITH_CLASSIFICATION': 'Product Line (with Classification)',
+    'PRODUCT_LINE_BRAND_TYPE': 'Product Line (Brand - Product Type)',
+    'CURRENT_RETAIL_PRICE': 'Current Retail Price',
+    'SIZE_DISPLAY': 'Size (display)',
+    'DISTRIBUTOR_NAME': 'Distributor Name'
+  }
+  return mapping[field] || field
+}
+
+// Map simple operators to SQL operators
+function mapOperator(operator: string): string {
+  const mapping: Record<string, string> = {
+    '=': '=',
+    '!=': '!=',
+    '>': '>',
+    '>=': '>=',
+    '<': '<',
+    '<=': '<=',
+    'LIKE': 'LIKE',
+    'NOT LIKE': 'NOT LIKE',
+    'ILIKE': 'ILIKE',
+    'NOT ILIKE': 'NOT ILIKE',
+    'IN': 'IN',
+    'NOT IN': 'NOT IN',
+    'equals': '=',
+    'not_equals': '!=',
+    'contains': 'LIKE',
+    'not_contains': 'NOT LIKE',
+    'greater_than': '>',
+    'less_than': '<',
+    'greater_than_equal': '>=',
+    'less_than_equal': '<='
+  }
+  return mapping[operator] || operator
 }

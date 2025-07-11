@@ -57,6 +57,7 @@ export interface Segment {
   type: 'behavioral' | 'predictive'
   criteria: Record<string, any>
   customer_count: number
+  product_count?: number
   growth_rate?: number
   where_clause?: string
   last_count_update?: string

@@ -546,6 +546,79 @@ export const snowflakeAPI = {
   }
 }
 
+// Product Segments API
+export const productSegmentsAPI = {
+  async getAll(): Promise<Segment[]> {
+    try {
+      const { data, error } = await supabase
+        .from('product_segments')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Supabase error:', error)
+        throw new Error(`Failed to fetch product segments: ${error.message}`)
+      }
+      
+      return data || []
+    } catch (error) {
+      console.error('Error fetching product segments:', error)
+      return []
+    }
+  },
+
+  async create(segment: Omit<Segment, 'id' | 'created_at' | 'updated_at'>): Promise<Segment> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !user.id || user.id.trim() === '') {
+      throw new Error('User not authenticated or invalid user ID')
+    }
+
+    const { data, error } = await supabase
+      .from('product_segments')
+      .insert([{
+        ...segment,
+        user_id: user.id
+      }])
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to create product segment: ${error.message}`)
+    }
+    
+    return data
+  },
+
+  async update(id: string, updates: Partial<Segment>): Promise<Segment> {
+    const { data, error } = await supabase
+      .from('product_segments')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to update product segment: ${error.message}`)
+    }
+    
+    return data
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('product_segments')
+      .delete()
+      .eq('id', id)
+    
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Failed to delete product segment: ${error.message}`)
+    }
+  }
+}
+
 // Analytics API - Mock implementation with realistic data
 export const analyticsAPI = {
   async getMetrics(period: string = '30d'): Promise<AnalyticsData[]> {

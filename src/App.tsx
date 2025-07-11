@@ -14,6 +14,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { Dashboard } from './pages/Dashboard'
 import { Campaigns } from './pages/Campaigns'
 import { Segments } from './pages/Segments'
+import { ProductSegments } from './pages/ProductSegments'
 import { Chat } from './pages/Chat'
 import { logger } from './lib/logger'
 
@@ -61,7 +62,8 @@ function App() {
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
     { id: 'campaigns', name: 'Campaigns', icon: Mail },
-    { id: 'segments', name: 'Segments', icon: Users },
+    { id: 'segments', name: 'Customer Segments', icon: Users },
+    { id: 'product-segments', name: 'Product Segments', icon: Users },
     { id: 'chat', name: 'Leia', icon: MessageSquare },
   ]
 
@@ -142,8 +144,11 @@ function App() {
                 >
                   <Menu className="w-6 h-6" />
                 </button>
-                <h1 className="ml-4 lg:ml-0 text-2xl font-bold text-gray-900 capitalize">
-                  {activeTab === 'chat' ? 'Leia' : activeTab}
+                <h1 className="ml-4 lg:ml-0 text-2xl font-bold text-gray-900">
+                  {activeTab === 'chat' ? 'Leia' : 
+                   activeTab === 'segments' ? 'Customer Segments' :
+                   activeTab === 'product-segments' ? 'Product Segments' :
+                   activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                 </h1>
               </div>
             </div>
@@ -155,6 +160,7 @@ function App() {
               {activeTab === 'dashboard' && <Dashboard />}
               {activeTab === 'campaigns' && <Campaigns />}
               {activeTab === 'segments' && <Segments />}
+              {activeTab === 'product-segments' && <ProductSegments />}
               {activeTab === 'chat' && <Chat />}
             </ErrorBoundary>
           </main>
