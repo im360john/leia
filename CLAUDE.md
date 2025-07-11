@@ -22,7 +22,9 @@ Supabase Client SDK
 Supabase Backend
 ├── PostgreSQL Database (RLS enabled)
 ├── Authentication (Email/Password)
-└── Edge Functions (Deno runtime)
+├── Edge Functions (Deno runtime)
+└── Snowflake Integration (via Edge Function)
+    └── Customer & Sales Data
 ```
 
 ## Directory Structure
@@ -33,7 +35,8 @@ leia/
 │   ├── components/        # Reusable UI components
 │   │   ├── AuthForm.tsx   # Login/signup form
 │   │   ├── CampaignForm.tsx # Campaign create/edit modal
-│   │   ├── SegmentForm.tsx  # Complex segment builder (542 lines)
+│   │   ├── SegmentForm.tsx  # Complex segment builder with Snowflake integration
+│   │   ├── SegmentPerformanceModal.tsx # Segment analytics dashboard
 │   │   └── ErrorBoundary.tsx # React error handling
 │   ├── pages/            # Page components (modular architecture)
 │   │   ├── Dashboard.tsx # Overview with stats
@@ -53,7 +56,10 @@ leia/
 │   │   ├── campaigns/    # Campaign operations
 │   │   ├── segments/     # Segment operations
 │   │   ├── analytics/    # Analytics data
-│   │   └── dashboard/    # Dashboard aggregations
+│   │   ├── dashboard/    # Dashboard aggregations
+│   │   ├── snowflake/    # Snowflake query execution
+│   │   ├── send-email/   # Email sending via Resend
+│   │   └── resend-webhook/ # Email event tracking
 │   └── migrations/       # Database schema
 └── dist/                 # Build output
 
@@ -120,6 +126,7 @@ interface Segment {
   criteria: Record<string, any>
   customer_count: number
   growth_rate?: number
+  where_clause?: string
   created_at: string
   updated_at: string
 }
@@ -141,23 +148,25 @@ interface Segment {
 - Hardcoded demo credentials in migrations
 - Open CORS policy (`*`) in edge functions
 - No rate limiting
-- Mock data for analytics
+- Mock data for dashboard analytics (segments use real Snowflake data)
 - Test mode email sending (all emails go to john@treez.io)
-- Basic segment filtering UI (complex but not functional)
 
 ### 🚫 Not Implemented
 - Production email delivery (currently in test mode)
-- Real customer data
-- Advanced analytics
 - A/B testing
 - Automation workflows
 - Team collaboration
+- Multi-organization support (currently single org)
 
 ### ✅ Recently Added
 - Email integration with Resend
 - Real-time delivery tracking
 - Email preview functionality
 - Webhook processing for email events
+- Snowflake integration for real customer data
+- Real-time segment building with customer counts
+- Segment performance analytics dashboard
+- Chart.js integration for data visualization
 
 ## Development Workflow
 
@@ -219,6 +228,7 @@ npx supabase functions list
 # - resend-webhook
 # - analytics
 # - dashboard
+# - snowflake
 ```
 
 ### Environment Variables
@@ -226,6 +236,22 @@ npx supabase functions list
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_anon_key
 ```
+
+### Snowflake Integration
+
+The Snowflake edge function requires these environment variables:
+```env
+SNOWFLAKE_ACCOUNT=TREEZ-INB77415
+SNOWFLAKE_USER=JOHNTREEZ
+SNOWFLAKE_PRIVATE_KEY=<private_key_pem_content>
+SNOWFLAKE_PUBLIC_KEY_FP=SHA256:xKNLo68+1YgPjYAQMEtb1V+KyJdmBekwgfheLCuIkN4=
+```
+
+Key tables:
+- `RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT` - Customer profiles and lifetime metrics
+- `RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES` - Sales transaction details
+
+All queries are automatically filtered by `ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'`
 
 ### Database Setup
 Run migrations in order:
@@ -354,11 +380,14 @@ Currently manual testing. For future:
 ## Important Files
 
 - `App.tsx` - Main application shell
-- `lib/api.ts` - API integration layer
+- `lib/api.ts` - API integration layer (includes Snowflake API)
 - `lib/logger.ts` - Logging utility
 - `components/ErrorBoundary.tsx` - Error handling
 - `components/EmailPreview.tsx` - Email preview modal
+- `components/SegmentForm.tsx` - Advanced segment builder with real-time counts
+- `components/SegmentPerformanceModal.tsx` - Segment analytics dashboard
 - `lib/emailTemplates.tsx` - React Email templates
+- `supabase/functions/snowflake/index.ts` - Snowflake query execution
 - `DEPLOY_TO_RENDER.md` - Deployment guide
 - `MIGRATION_INSTRUCTIONS.md` - Manual migration guide
 
