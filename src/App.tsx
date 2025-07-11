@@ -6,7 +6,8 @@ import {
   Mail, 
   Menu, 
   X, 
-  LogOut
+  LogOut,
+  Package
 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { AuthForm } from './components/AuthForm'
@@ -63,7 +64,7 @@ function App() {
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
     { id: 'campaigns', name: 'Campaigns', icon: Mail },
     { id: 'segments', name: 'Customer Segments', icon: Users },
-    { id: 'product-segments', name: 'Product Segments', icon: Users },
+    { id: 'product-segments', name: 'Product Segments', icon: Package },
     { id: 'chat', name: 'Leia', icon: MessageSquare },
   ]
 

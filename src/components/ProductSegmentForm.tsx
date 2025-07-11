@@ -24,17 +24,25 @@ interface FilterGroup {
   rules: FilterRule[]
 }
 
-const FILTER_FIELDS = [
-  { value: 'STORE_NAME', label: 'Store Name', type: 'text', icon: Store },
-  { value: 'PRODUCT_BRAND', label: 'Product Brand', type: 'text', icon: Tag },
-  { value: 'PRODUCT_TYPE', label: 'Product Type', type: 'text', icon: Package },
-  { value: 'PRODUCT_SUB_TYPE', label: 'Product Subtype', type: 'text', icon: Package },
+interface FieldOption {
+  value: string
+  label: string
+  type: 'text' | 'number' | 'select'
+  icon: any
+  options?: string[] // For select fields
+}
+
+const FILTER_FIELDS: FieldOption[] = [
+  { value: 'STORE_NAME', label: 'Store Name', type: 'select', icon: Store },
+  { value: 'PRODUCT_BRAND', label: 'Product Brand', type: 'select', icon: Tag },
+  { value: 'PRODUCT_TYPE', label: 'Product Type', type: 'select', icon: Package },
+  { value: 'PRODUCT_SUB_TYPE', label: 'Product Subtype', type: 'select', icon: Package },
   { value: 'PRODUCT_LINE', label: 'Product Line', type: 'text', icon: Layers },
   { value: 'PRODUCT_LINE_WITH_CLASSIFICATION', label: 'Product Line (with Classifications)', type: 'text', icon: Layers },
   { value: 'PRODUCT_LINE_BRAND_TYPE', label: 'Product Line (Brand - Product Type)', type: 'text', icon: Layers },
   { value: 'CURRENT_RETAIL_PRICE', label: 'Current Retail Price', type: 'number', icon: DollarSign },
   { value: 'SIZE_DISPLAY', label: 'Size (display)', type: 'text', icon: Hash },
-  { value: 'DISTRIBUTOR_NAME', label: 'Distributor Name', type: 'text', icon: Store },
+  { value: 'DISTRIBUTOR_NAME', label: 'Distributor Name', type: 'select', icon: Store },
 ]
 
 const OPERATORS = {
@@ -59,6 +67,8 @@ const OPERATORS = {
   select: [
     { value: '=', label: 'equals' },
     { value: '!=', label: 'not equals' },
+    { value: 'IN', label: 'in list' },
+    { value: 'NOT IN', label: 'not in list' },
   ]
 }
 
@@ -69,6 +79,8 @@ export default function ProductSegmentForm({ segment, onSave, onCancel }: Produc
   const [isLoading, setIsLoading] = useState(false)
   const [productCount, setProductCount] = useState<number | null>(null)
   const [isCountingProducts, setIsCountingProducts] = useState(false)
+  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({})
+  const [loadingOptions, setLoadingOptions] = useState(false)
   
   const [filterGroups, setFilterGroups] = useState<FilterGroup[]>(() => {
     if (segment?.criteria?.filterGroups) {
@@ -93,7 +105,112 @@ export default function ProductSegmentForm({ segment, onSave, onCancel }: Produc
       segmentId: segment?.id,
       filterGroups
     })
-  }, [segment, filterGroups])
+    loadFieldOptions()
+  }, [segment])
+
+  const loadFieldOptions = async () => {
+    setLoadingOptions(true)
+    try {
+      // Fetch distinct values for select fields
+      const [storesRes, brandsRes, typesRes, subtypesRes, distributorsRes] = await Promise.all([
+        // Stores
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Store Name" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND "Store Name" IS NOT NULL
+              ORDER BY "Store Name"
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        // Brands
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Product Brand" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND "Product Brand" IS NOT NULL
+              ORDER BY "Product Brand"
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        // Types
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Product Type" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND "Product Type" IS NOT NULL
+              ORDER BY "Product Type"
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        // Subtypes
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Product Sub Type" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND "Product Sub Type" IS NOT NULL
+              ORDER BY "Product Sub Type"
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        // Distributors
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Distributor Name" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND "Distributor Name" IS NOT NULL
+              ORDER BY "Distributor Name"
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        })
+      ])
+
+      const extractValues = (response: any): string[] => {
+        if (response.error) {
+          console.error('Error fetching options:', response.error)
+          return []
+        }
+        return response.data?.data?.data?.map((row: any[]) => row[0]) || []
+      }
+
+      setFieldOptions({
+        STORE_NAME: extractValues(storesRes),
+        PRODUCT_BRAND: extractValues(brandsRes),
+        PRODUCT_TYPE: extractValues(typesRes),
+        PRODUCT_SUB_TYPE: extractValues(subtypesRes),
+        DISTRIBUTOR_NAME: extractValues(distributorsRes)
+      })
+    } catch (error) {
+      logger.error('Failed to load field options', { error })
+    } finally {
+      setLoadingOptions(false)
+    }
+  }
 
   const addRule = (groupId: string) => {
     setFilterGroups(groups => 
@@ -297,6 +414,10 @@ export default function ProductSegmentForm({ segment, onSave, onCancel }: Produc
     }
   }
 
+  const getFieldOptions = (fieldValue: string) => {
+    return fieldOptions[fieldValue] || []
+  }
+
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -351,7 +472,7 @@ export default function ProductSegmentForm({ segment, onSave, onCancel }: Produc
               <button
                 type="button"
                 onClick={getProductCount}
-                disabled={isCountingProducts}
+                disabled={isCountingProducts || loadingOptions}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
               >
                 {isCountingProducts ? 'Counting...' : 'Count Products'}
@@ -394,81 +515,97 @@ export default function ProductSegmentForm({ segment, onSave, onCancel }: Produc
                 </div>
 
                 <div className="space-y-2">
-                  {group.rules.map((rule, ruleIndex) => (
-                    <div key={rule.id} className="flex items-center space-x-2">
-                      {ruleIndex > 0 && (
-                        <span className="text-xs text-gray-500 ml-4">{group.logic}</span>
-                      )}
-                      
-                      {/* Field Select */}
-                      <select
-                        value={rule.field}
-                        onChange={(e) => {
-                          const field = FILTER_FIELDS.find(f => f.value === e.target.value)
-                          updateRule(group.id, rule.id, {
-                            field: e.target.value,
-                            valueType: field?.type || 'text',
-                            operator: field?.type === 'number' ? '=' : rule.operator
-                          })
-                        }}
-                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-                      >
-                        <option value="">Select field...</option>
-                        {FILTER_FIELDS.map(field => (
-                          <option key={field.value} value={field.value}>
-                            {field.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* Operator Select */}
-                      <select
-                        value={rule.operator}
-                        onChange={(e) => updateRule(group.id, rule.id, { operator: e.target.value })}
-                        className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        disabled={!rule.field}
-                      >
-                        {(OPERATORS[rule.valueType as keyof typeof OPERATORS] || OPERATORS.text).map(op => (
-                          <option key={op.value} value={op.value}>
-                            {op.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* Value Input */}
-                      {rule.valueType === 'select' ? (
+                  {group.rules.map((rule, ruleIndex) => {
+                    const selectedField = FILTER_FIELDS.find(f => f.value === rule.field)
+                    const fieldType = selectedField?.type || 'text'
+                    const isSelectField = selectedField?.type === 'select'
+                    const availableOptions = isSelectField ? getFieldOptions(rule.field) : []
+                    
+                    return (
+                      <div key={rule.id} className="flex items-center space-x-2">
+                        {ruleIndex > 0 && (
+                          <span className="text-xs text-gray-500 ml-4">{group.logic}</span>
+                        )}
+                        
+                        {/* Field Select */}
                         <select
-                          value={rule.value}
-                          onChange={(e) => updateRule(group.id, rule.id, { value: e.target.value })}
+                          value={rule.field}
+                          onChange={(e) => {
+                            const field = FILTER_FIELDS.find(f => f.value === e.target.value)
+                            updateRule(group.id, rule.id, {
+                              field: e.target.value,
+                              valueType: field?.type || 'text',
+                              operator: field?.type === 'number' ? '=' : rule.operator,
+                              value: '' // Reset value when field changes
+                            })
+                          }}
                           className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          disabled={!rule.field}
                         >
-                          <option value="">Select...</option>
-                          {/* Add options based on field */}
+                          <option value="">Select field...</option>
+                          {FILTER_FIELDS.map(field => (
+                            <option key={field.value} value={field.value}>
+                              {field.label}
+                            </option>
+                          ))}
                         </select>
-                      ) : (
-                        <input
-                          type={rule.valueType === 'number' ? 'number' : 'text'}
-                          value={rule.value}
-                          onChange={(e) => updateRule(group.id, rule.id, { value: e.target.value })}
-                          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          disabled={!rule.field}
-                          placeholder={rule.operator === 'IN' || rule.operator === 'NOT IN' ? 'comma,separated,values' : 'Enter value...'}
-                        />
-                      )}
 
-                      {/* Remove Rule Button */}
-                      {group.rules.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeRule(group.id, rule.id)}
-                          className="text-red-600 hover:text-red-800"
+                        {/* Operator Select */}
+                        <select
+                          value={rule.operator}
+                          onChange={(e) => updateRule(group.id, rule.id, { operator: e.target.value })}
+                          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                          disabled={!rule.field}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                          {(OPERATORS[fieldType as keyof typeof OPERATORS] || OPERATORS.text).map(op => (
+                            <option key={op.value} value={op.value}>
+                              {op.label}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Value Input */}
+                        {isSelectField && availableOptions.length > 0 ? (
+                          <select
+                            value={rule.value}
+                            onChange={(e) => updateRule(group.id, rule.id, { value: e.target.value })}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                            disabled={!rule.field || loadingOptions}
+                          >
+                            <option value="">Select...</option>
+                            {availableOptions.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={rule.valueType === 'number' ? 'number' : 'text'}
+                            value={rule.value}
+                            onChange={(e) => updateRule(group.id, rule.id, { value: e.target.value })}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                            disabled={!rule.field}
+                            placeholder={
+                              rule.operator === 'IN' || rule.operator === 'NOT IN' 
+                                ? 'comma,separated,values' 
+                                : isSelectField && loadingOptions
+                                  ? 'Loading options...'
+                                  : 'Enter value...'
+                            }
+                          />
+                        )}
+
+                        {/* Remove Rule Button */}
+                        {group.rules.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeRule(group.id, rule.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
 
                 <button

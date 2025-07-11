@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, TrendingUp, Package, DollarSign, BarChart3, Calendar, Percent, Hash } from 'lucide-react'
+import { X, Package, DollarSign, Calendar, Percent, Hash, Filter, ChevronDown } from 'lucide-react'
 import { Segment } from '../lib/supabase'
 import { logger } from '../lib/logger'
 import { supabase } from '../lib/supabase'
@@ -11,10 +11,10 @@ interface ProductSegmentPerformanceModalProps {
 }
 
 interface ProductMetrics {
-  sellableVelocity: number // Percentage
-  lifetimeUnitsSold: number
-  lifetimeDaysSellable: number
-  costOfInventory: number
+  avgSellableVelocity: number // Percentage (average)
+  avgLifetimeUnitsSold: number // Average
+  avgLifetimeDaysSellable: number // Average
+  avgCostOfInventory: number // Average
   currentUnitsSold: number
   grossReceipts: number[]
   unitsRemaining: number[]
@@ -22,10 +22,25 @@ interface ProductMetrics {
   dates: string[]
 }
 
+interface ProductFilters {
+  productBrand?: string
+  productType?: string
+  productSubtype?: string
+  dateRange: number // days
+}
+
 export default function ProductSegmentPerformanceModal({ segment, onClose }: ProductSegmentPerformanceModalProps) {
   const [metrics, setMetrics] = useState<ProductMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filters, setFilters] = useState<ProductFilters>({ dateRange: 30 })
+  const [showFilters, setShowFilters] = useState(false)
+  const [availableFilters, setAvailableFilters] = useState<{
+    brands: string[]
+    types: string[]
+    subtypes: string[]
+  }>({ brands: [], types: [], subtypes: [] })
+  
   const chartRef = useRef<HTMLCanvasElement>(null)
   const chartInstance = useRef<Chart | null>(null)
 
@@ -36,6 +51,7 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
       segmentName: segment.name 
     })
     
+    fetchAvailableFilters()
     fetchMetrics()
     
     return () => {
@@ -45,27 +61,109 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
     }
   }, [segment])
 
+  useEffect(() => {
+    fetchMetrics()
+  }, [filters])
+
+  const fetchAvailableFilters = async () => {
+    try {
+      const whereClause = segment.where_clause || buildWhereClause(segment.criteria?.filterGroups || [])
+      
+      // Fetch distinct values for filters
+      const [brandsRes, typesRes, subtypesRes] = await Promise.all([
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Product Brand" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                ${whereClause ? `AND ${whereClause}` : ''}
+                AND "Product Brand" IS NOT NULL
+              ORDER BY "Product Brand"
+              LIMIT 50
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Product Type" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                ${whereClause ? `AND ${whereClause}` : ''}
+                AND "Product Type" IS NOT NULL
+              ORDER BY "Product Type"
+              LIMIT 50
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT "Product Sub Type" 
+              FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
+              WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
+                ${whereClause ? `AND ${whereClause}` : ''}
+                AND "Product Sub Type" IS NOT NULL
+              ORDER BY "Product Sub Type"
+              LIMIT 50
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        })
+      ])
+
+      setAvailableFilters({
+        brands: brandsRes.data?.data?.data?.map((row: any) => row[0]) || [],
+        types: typesRes.data?.data?.data?.map((row: any) => row[0]) || [],
+        subtypes: subtypesRes.data?.data?.data?.map((row: any) => row[0]) || []
+      })
+    } catch (error) {
+      logger.error('Failed to fetch available filters', { error })
+    }
+  }
+
   const fetchMetrics = async () => {
     setIsLoading(true)
     setError(null)
     
     try {
       // Build WHERE clause from segment criteria
-      const whereClause = segment.where_clause || buildWhereClause(segment.criteria?.filterGroups || [])
+      const segmentWhereClause = segment.where_clause || buildWhereClause(segment.criteria?.filterGroups || [])
       
-      // Fetch aggregated metrics
+      // Add filter conditions
+      let filterConditions = []
+      if (filters.productBrand) {
+        filterConditions.push(`"Product Brand" = '${filters.productBrand}'`)
+      }
+      if (filters.productType) {
+        filterConditions.push(`"Product Type" = '${filters.productType}'`)
+      }
+      if (filters.productSubtype) {
+        filterConditions.push(`"Product Sub Type" = '${filters.productSubtype}'`)
+      }
+      
+      const filterWhereClause = filterConditions.length > 0 ? `AND ${filterConditions.join(' AND ')}` : ''
+      
+      // Fetch aggregated metrics (AVERAGES for lifetime metrics)
       const metricsResponse = await supabase.functions.invoke('snowflake', {
         body: {
           sql: `
             SELECT 
               AVG("Product Sellable Velocity (all time)") as avg_sellable_velocity,
-              SUM("Product Units Sold (all time)") as total_units_sold,
+              AVG("Product Units Sold (all time)") as avg_lifetime_units_sold,
               AVG("Product Days Sellable (all time)") as avg_days_sellable,
-              SUM("Cost of Inventory (with Excise)") as total_cost,
+              AVG("Cost of Inventory (with Excise)") as avg_cost,
               SUM("Product Units Sold") as current_units_sold
             FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
             WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
-              ${whereClause ? `AND ${whereClause}` : ''}
+              ${segmentWhereClause ? `AND ${segmentWhereClause}` : ''}
+              ${filterWhereClause}
           `,
           database: 'RETAIL_ANALYTICS',
           warehouse: 'RETAIL_ANALYTICS'
@@ -83,16 +181,17 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
         body: {
           sql: `
             SELECT 
-              "Inventory Date",
+              DATE("Inventory Date") as inventory_date,
               SUM("Product Gross Receipts") as gross_receipts,
               SUM("Product Units Remaining") as units_remaining,
               SUM("Product Units Sold") as units_sold
             FROM RETAIL_ANALYTICS.DBT_RETAIL_ANALYTICS.RA_PRODUCT_SALES_AND_INVENTORY_V1
             WHERE "Org Id" = '0273cbe1-667c-4421-a875-d65afff0280b'
-              ${whereClause ? `AND ${whereClause}` : ''}
-              AND "Inventory Date" >= DATEADD(day, -30, CURRENT_DATE())
-            GROUP BY "Inventory Date"
-            ORDER BY "Inventory Date"
+              ${segmentWhereClause ? `AND ${segmentWhereClause}` : ''}
+              ${filterWhereClause}
+              AND "Inventory Date" >= DATEADD(day, -${filters.dateRange}, CURRENT_DATE())
+            GROUP BY DATE("Inventory Date")
+            ORDER BY inventory_date
           `,
           database: 'RETAIL_ANALYTICS',
           warehouse: 'RETAIL_ANALYTICS'
@@ -107,10 +206,10 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
       
       // Process the data
       const processedMetrics: ProductMetrics = {
-        sellableVelocity: parseFloat(metricsData[0]) || 0,
-        lifetimeUnitsSold: parseInt(metricsData[1]) || 0,
-        lifetimeDaysSellable: parseInt(metricsData[2]) || 0,
-        costOfInventory: parseFloat(metricsData[3]) || 0,
+        avgSellableVelocity: parseFloat(metricsData[0]) || 0,
+        avgLifetimeUnitsSold: parseFloat(metricsData[1]) || 0,
+        avgLifetimeDaysSellable: parseFloat(metricsData[2]) || 0,
+        avgCostOfInventory: parseFloat(metricsData[3]) || 0,
         currentUnitsSold: parseInt(metricsData[4]) || 0,
         dates: timeSeriesData.map((row: any[]) => formatDate(row[0])),
         grossReceipts: timeSeriesData.map((row: any[]) => parseFloat(row[1]) || 0),
@@ -136,7 +235,6 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
   }
 
   const buildWhereClause = (filterGroups: any[]): string => {
-    // Similar to ProductSegmentForm buildWhereClause
     const groupClauses = filterGroups
       .filter(group => group.rules.some((rule: any) => rule.field && rule.value))
       .map(group => {
@@ -183,8 +281,14 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
   }
 
   const formatDate = (dateStr: string): string => {
+    if (!dateStr) return ''
     const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    // Ensure we're getting the actual date, not Jan 1
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: 'UTC' // Use UTC to avoid timezone issues
+    })
   }
 
   const formatCurrency = (value: number): string => {
@@ -251,7 +355,7 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
           },
           title: {
             display: true,
-            text: 'Product Performance Trends (Last 30 Days)'
+            text: `Product Performance Trends (Last ${filters.dateRange} Days)`
           }
         },
         scales: {
@@ -259,7 +363,7 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
             display: true,
             title: {
               display: true,
-              text: 'Date'
+              text: 'Inventory Date'
             }
           },
           'y-revenue': {
@@ -310,6 +414,87 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-5rem)]">
+          {/* Filters */}
+          <div className="mb-6">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <Filter className="h-4 w-4" />
+              <span>Filters</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showFilters && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Product Brand
+                  </label>
+                  <select
+                    value={filters.productBrand || ''}
+                    onChange={(e) => setFilters({ ...filters, productBrand: e.target.value || undefined })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">All Brands</option>
+                    {availableFilters.brands.map(brand => (
+                      <option key={brand} value={brand}>{brand}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Product Type
+                  </label>
+                  <select
+                    value={filters.productType || ''}
+                    onChange={(e) => setFilters({ ...filters, productType: e.target.value || undefined })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">All Types</option>
+                    {availableFilters.types.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Product Subtype
+                  </label>
+                  <select
+                    value={filters.productSubtype || ''}
+                    onChange={(e) => setFilters({ ...filters, productSubtype: e.target.value || undefined })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">All Subtypes</option>
+                    {availableFilters.subtypes.map(subtype => (
+                      <option key={subtype} value={subtype}>{subtype}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date Range
+                  </label>
+                  <select
+                    value={filters.dateRange}
+                    onChange={(e) => setFilters({ ...filters, dateRange: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value={7}>Last 7 days</option>
+                    <option value={14}>Last 14 days</option>
+                    <option value={30}>Last 30 days</option>
+                    <option value={60}>Last 60 days</option>
+                    <option value={90}>Last 90 days</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
@@ -323,15 +508,15 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
             </div>
           ) : metrics ? (
             <div className="space-y-6">
-              {/* Product Lifetime Metrics */}
+              {/* Product Lifetime Metrics (Averages) */}
               <div>
-                <h3 className="text-lg font-medium mb-4">Product Lifetime Metrics</h3>
+                <h3 className="text-lg font-medium mb-4">Product Lifetime Metrics (Averages)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Sellable Velocity</p>
-                        <p className="text-2xl font-semibold mt-1">{metrics.sellableVelocity.toFixed(1)}%</p>
+                        <p className="text-sm text-gray-600">Avg. Sellable Velocity</p>
+                        <p className="text-2xl font-semibold mt-1">{metrics.avgSellableVelocity.toFixed(1)}%</p>
                       </div>
                       <Percent className="h-8 w-8 text-green-500" />
                     </div>
@@ -340,8 +525,8 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Lifetime Units Sold</p>
-                        <p className="text-2xl font-semibold mt-1">{metrics.lifetimeUnitsSold.toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">Avg. Lifetime Units Sold</p>
+                        <p className="text-2xl font-semibold mt-1">{Math.round(metrics.avgLifetimeUnitsSold).toLocaleString()}</p>
                       </div>
                       <Package className="h-8 w-8 text-blue-500" />
                     </div>
@@ -350,8 +535,8 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Lifetime Days Sellable</p>
-                        <p className="text-2xl font-semibold mt-1">{metrics.lifetimeDaysSellable.toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">Avg. Lifetime Days Sellable</p>
+                        <p className="text-2xl font-semibold mt-1">{Math.round(metrics.avgLifetimeDaysSellable).toLocaleString()}</p>
                       </div>
                       <Calendar className="h-8 w-8 text-purple-500" />
                     </div>
@@ -366,8 +551,8 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Cost of Inventory</p>
-                        <p className="text-2xl font-semibold mt-1">{formatCurrency(metrics.costOfInventory)}</p>
+                        <p className="text-sm text-gray-600">Avg. Cost of Inventory</p>
+                        <p className="text-2xl font-semibold mt-1">{formatCurrency(metrics.avgCostOfInventory)}</p>
                       </div>
                       <DollarSign className="h-8 w-8 text-red-500" />
                     </div>
@@ -390,33 +575,6 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
                 <h3 className="text-lg font-medium mb-4">Performance Trends</h3>
                 <div className="bg-gray-50 rounded-lg p-4" style={{ height: '400px' }}>
                   <canvas ref={chartRef}></canvas>
-                </div>
-              </div>
-
-              {/* Segment Details */}
-              <div>
-                <h3 className="text-lg font-medium mb-4">Segment Information</h3>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Products in Segment</span>
-                    <span className="text-sm font-medium">{segment.product_count?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Segment Type</span>
-                    <span className="text-sm font-medium capitalize">{segment.type}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Created</span>
-                    <span className="text-sm font-medium">
-                      {new Date(segment.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {segment.description && (
-                    <div className="pt-2 border-t">
-                      <p className="text-sm text-gray-600">Description</p>
-                      <p className="text-sm mt-1">{segment.description}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
