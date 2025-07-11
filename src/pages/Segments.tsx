@@ -215,8 +215,7 @@ export function Segments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Customer Segments</h2>
+      <div className="flex items-center justify-end">
         <button
           onClick={() => setShowSegmentForm(true)}
           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center gap-2"
