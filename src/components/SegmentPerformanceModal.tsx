@@ -354,15 +354,28 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
     }
   }
 
+  const formatDate = (dateStr: string): string => {
+    if (!dateStr) return ''
+    
+    // Handle Snowflake date format (YYYY-MM-DD)
+    // Create date at noon UTC to avoid timezone issues
+    const [year, month, day] = dateStr.split(/[-T]/).slice(0, 3)
+    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0))
+    
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date:', dateStr)
+      return dateStr
+    }
+    
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: 'UTC'
+    })
+  }
+
   const salesChartData = {
-    labels: trendData.map(d => {
-      const date = new Date(d.date)
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        timeZone: 'UTC' // Use UTC to avoid timezone issues
-      })
-    }),
+    labels: trendData.map(d => formatDate(d.date)),
     datasets: [
       {
         label: 'Daily Sales',

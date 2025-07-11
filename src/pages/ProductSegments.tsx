@@ -246,11 +246,6 @@ export function ProductSegments() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">{segment.name}</h3>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                      segment.type === 'behavioral' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                    }`}>
-                      {segment.type}
-                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <button

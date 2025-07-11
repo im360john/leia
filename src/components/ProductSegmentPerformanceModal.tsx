@@ -282,12 +282,21 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
 
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return ''
-    const date = new Date(dateStr)
-    // Ensure we're getting the actual date, not Jan 1
+    
+    // Handle Snowflake date format (YYYY-MM-DD)
+    // Create date at noon UTC to avoid timezone issues
+    const [year, month, day] = dateStr.split(/[-T]/).slice(0, 3)
+    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0))
+    
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date:', dateStr)
+      return dateStr
+    }
+    
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric',
-      timeZone: 'UTC' // Use UTC to avoid timezone issues
+      timeZone: 'UTC'
     })
   }
 
