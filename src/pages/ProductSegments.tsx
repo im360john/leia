@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Edit, Trash2, Package, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { productSegmentsAPI, snowflakeAPI } from '../lib/api'
 import { Segment } from '../lib/supabase'
 import ProductSegmentForm from '../components/ProductSegmentForm'
@@ -12,6 +12,7 @@ export function ProductSegments() {
   const [segments, setSegments] = useState<Segment[]>([])
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [searchTerm, setSearchTerm] = useState('')
   
   // Form states
   const [showSegmentForm, setShowSegmentForm] = useState(false)
@@ -186,11 +187,23 @@ export function ProductSegments() {
     }
   }
 
+  // Filter segments based on search term
+  const filteredSegments = segments.filter(segment => {
+    const searchLower = searchTerm.toLowerCase()
+    return segment.name.toLowerCase().includes(searchLower) || 
+           segment.description.toLowerCase().includes(searchLower)
+  })
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
+
   // Pagination calculations
-  const totalPages = Math.ceil(segments.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredSegments.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
-  const currentSegments = segments.slice(startIndex, endIndex)
+  const currentSegments = filteredSegments.slice(startIndex, endIndex)
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -222,6 +235,22 @@ export function ProductSegments() {
         </button>
       </div>
 
+      {/* Search Bar */}
+      {segments.length > 0 && (
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search segments by name or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+          />
+        </div>
+      )}
+
       {segments.length === 0 ? (
         <div className="text-center py-12">
           <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -233,6 +262,12 @@ export function ProductSegments() {
           >
             Create Segment
           </button>
+        </div>
+      ) : filteredSegments.length === 0 ? (
+        <div className="text-center py-12">
+          <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No segments found</h3>
+          <p className="text-gray-600">Try adjusting your search term.</p>
         </div>
       ) : (
         <>
@@ -278,12 +313,6 @@ export function ProductSegments() {
                     </p>
                     <p className="text-sm text-gray-500">products</p>
                   </div>
-                  {segment.growth_rate && (
-                    <div className="flex items-center text-green-600">
-                      <TrendingUp className="w-4 h-4 mr-1" />
-                      <span className="text-sm font-medium">+{segment.growth_rate}%</span>
-                    </div>
-                  )}
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-100">

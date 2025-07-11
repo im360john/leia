@@ -184,16 +184,10 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
   })
 
   const [activeTab, setActiveTab] = useState<keyof typeof FILTER_FIELDS>('customer')
-  const [estimatedCount, setEstimatedCount] = useState(() => {
-    // Load estimated count from existing segment if editing
-    if (segment?.customer_count) {
-      return segment.customer_count
-    }
-    return 0
-  })
+  const [estimatedCount, setEstimatedCount] = useState<number | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingSchema, setIsLoadingSchema] = useState(false)
-  const [isLoadingCount, setIsLoadingCount] = useState(false)
+  const [isCountingCustomers, setIsCountingCustomers] = useState(false)
   const [snowflakeColumns, setSnowflakeColumns] = useState<Array<{ name: string; type: string; nullable: boolean; comment: string }>>([])
   const [snowflakeError, setSnowflakeError] = useState<string | null>(null)
 
@@ -208,10 +202,6 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
       
       if (segment.criteria?.filterGroups) {
         setFilterGroups(segment.criteria.filterGroups)
-      }
-      
-      if (segment.customer_count) {
-        setEstimatedCount(segment.customer_count)
       }
     }
   }, [segment])
@@ -307,65 +297,42 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
   }
 
 
-  // Update customer count when filters change
-  useEffect(() => {
-    const updateCount = async () => {
-      console.log('[SegmentForm] Filter groups changed:', {
-        filterGroups,
-        hasSnowflakeError: !!snowflakeError
-      })
-      
+  // Function to count customers when button is clicked
+  const getCustomerCount = async () => {
+    setIsCountingCustomers(true)
+    setEstimatedCount(null)
+    
+    try {
       const hasRules = filterGroups.some(group => group.rules.length > 0)
       
       if (hasRules && !snowflakeError) {
-        setIsLoadingCount(true)
-        try {
-          console.log('[SegmentForm] Fetching customer count for filter groups')
-          const result = await snowflakeAPI.getCustomerCountFromFilters(filterGroups)
-          setEstimatedCount(result.count)
-          
-          console.log('[SegmentForm] Customer count updated:', {
-            count: result.count
-          })
-          
-          logger.debug('Updated customer count', {
-            component: 'SegmentForm',
-            count: result.count
-          })
-        } catch (error) {
-          console.error('[SegmentForm] Failed to get customer count:', error)
-          logger.error('Failed to get customer count', {
-            component: 'SegmentForm',
-            error
-          })
-          // Fallback to mock calculation
-          const totalRules = filterGroups.reduce((sum, group) => sum + group.rules.length, 0)
-          const baseCount = 10000
-          const reduction = Math.min(totalRules * 0.3, 0.9)
-          setEstimatedCount(Math.floor(baseCount * (1 - reduction)))
-        } finally {
-          setIsLoadingCount(false)
-        }
+        console.log('[SegmentForm] Fetching customer count for filter groups')
+        const result = await snowflakeAPI.getCustomerCountFromFilters(filterGroups)
+        setEstimatedCount(result.count)
+        
+        logger.debug('Customer count retrieved', {
+          component: 'SegmentForm',
+          count: result.count
+        })
       } else if (!hasRules) {
         // No filters, get total count
         console.log('[SegmentForm] No filters, fetching total count')
-        setIsLoadingCount(true)
-        try {
-          const result = await snowflakeAPI.getCustomerCount()
-          setEstimatedCount(result.count)
-          console.log('[SegmentForm] Total customer count:', result.count)
-        } catch (error) {
-          console.error('[SegmentForm] Failed to get total count:', error)
-          setEstimatedCount(0)
-        } finally {
-          setIsLoadingCount(false)
-        }
+        const result = await snowflakeAPI.getCustomerCount()
+        setEstimatedCount(result.count)
+      } else {
+        setEstimatedCount(0)
       }
+    } catch (error) {
+      console.error('[SegmentForm] Failed to get customer count:', error)
+      logger.error('Failed to get customer count', {
+        component: 'SegmentForm',
+        error
+      })
+      setEstimatedCount(null)
+    } finally {
+      setIsCountingCustomers(false)
     }
-    
-    const timeoutId = setTimeout(updateCount, 500) // Debounce
-    return () => clearTimeout(timeoutId)
-  }, [filterGroups, snowflakeError])
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -388,7 +355,7 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
         filterGroups,
         estimatedCount
       },
-      customer_count: estimatedCount,
+      customer_count: estimatedCount || 0,
       growth_rate: segment?.growth_rate
     }
     
@@ -646,19 +613,14 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-medium text-gray-900">Filter Rules</h3>
                   <div className="flex items-center gap-4">
-                    <div className="text-sm text-gray-600">
-                      {isLoadingCount ? (
-                        <span className="flex items-center gap-2">
-                          <span className="inline-block w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></span>
-                          Calculating...
-                        </span>
-                      ) : (
-                        <>
-                          Estimated: <span className="font-medium text-purple-600">{estimatedCount.toLocaleString()}</span> customers
-                          {snowflakeError && <span className="text-orange-600 ml-2">(Using demo data)</span>}
-                        </>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={getCustomerCount}
+                      disabled={isCountingCustomers || snowflakeError}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
+                    >
+                      {isCountingCustomers ? 'Counting...' : 'Count Customers'}
+                    </button>
                     <button
                       type="button"
                       onClick={addFilterGroup}
@@ -669,6 +631,15 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
                     </button>
                   </div>
                 </div>
+
+                {estimatedCount !== null && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                    <p className="text-sm text-blue-800">
+                      This segment contains <span className="font-semibold">{estimatedCount.toLocaleString()}</span> customers
+                      {snowflakeError && <span className="text-orange-600 ml-2">(Using demo data)</span>}
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-6">
                   {filterGroups.map((group, groupIndex) => (
