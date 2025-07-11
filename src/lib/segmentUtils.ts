@@ -265,7 +265,7 @@ export function buildSegmentAnalyticsQuery(
   // Build trend query
   const trendQuery = `
     SELECT 
-      DATE(s.DATE_CLOSE) as sale_date,
+      TO_CHAR(DATE(s.DATE_CLOSE), 'YYYY-MM-DD') as sale_date,
       SUM(s.GROSS_RECEIPTS) as daily_sales,
       COUNT(DISTINCT s.TICKET_ID) as daily_transactions,
       SUM(s.GROSS_RECEIPTS) / NULLIF(COUNT(DISTINCT s.TICKET_ID), 0) as daily_aov,

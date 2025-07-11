@@ -206,6 +206,16 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
 
       const data = response.data?.data?.data || []
       console.log('[SegmentPerformance] Raw trend data from Snowflake:', data.slice(0, 5)) // Log first 5 rows
+      
+      // Debug: Log the exact date values we're getting
+      if (data.length > 0) {
+        console.log('[SegmentPerformance] Sample date values:', data.slice(0, 3).map((row: any[]) => ({
+          raw: row[0],
+          type: typeof row[0],
+          parsed: formatDate(row[0])
+        })))
+      }
+      
       const trends: TrendData[] = data.map((row: any[]) => ({
         date: row[0],
         sales: parseFloat(row[1]) || 0,
@@ -355,61 +365,56 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
     }
   }
 
-  const formatDate = (dateStr: string | number): string => {
+  const formatDate = (dateStr: string): string => {
     if (!dateStr) return ''
     
-    // Convert to string if number
-    const dateString = String(dateStr)
-    
-    // Log the raw date value for debugging
-    console.log('[SegmentPerformance] Formatting date:', dateString)
-    
-    // Check if it's a number that looks like YYYYDDD format (e.g., 2025001 for Jan 1, 2025)
-    if (/^\d{7,8}$/.test(dateString)) {
-      // This appears to be a Julian date or year + day of year format
-      const yearStr = dateString.substring(0, 4)
-      const dayOfYear = parseInt(dateString.substring(4))
-      const year = parseInt(yearStr)
+    try {
+      // Check if the date is already in YYYY-MM-DD format
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, month, day] = dateStr.split('-').map(Number)
+        const date = new Date(Date.UTC(year, month - 1, day))
+        
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            timeZone: 'UTC'
+          })
+        }
+      }
       
-      // Create date from year and day of year
-      const date = new Date(year, 0) // Start with Jan 1 of the year
-      date.setDate(dayOfYear) // Add the day of year
+      // Check if it's a number (possibly Excel serial date or similar)
+      const numericDate = Number(dateStr)
+      if (!isNaN(numericDate) && numericDate > 40000 && numericDate < 60000) {
+        // This might be an Excel serial date
+        // Excel dates start from 1900-01-01 as day 1
+        // But there's a leap year bug, so we need to subtract 1 for dates after Feb 28, 1900
+        const excelEpoch = new Date(1899, 11, 30) // December 30, 1899
+        const date = new Date(excelEpoch.getTime() + numericDate * 24 * 60 * 60 * 1000)
+        
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            timeZone: 'UTC'
+          })
+        }
+      }
       
+      // Try parsing as a regular date string
+      const date = new Date(dateStr)
       if (!isNaN(date.getTime())) {
         return date.toLocaleDateString('en-US', { 
           month: 'short', 
-          day: 'numeric',
-          timeZone: 'UTC'
+          day: 'numeric'
         })
       }
+    } catch (error) {
+      console.warn('Error parsing date:', dateStr, error)
     }
     
-    // Handle standard date formats (YYYY-MM-DD)
-    const [year, month, day] = dateString.split(/[-T]/).slice(0, 3)
-    if (year && month && day) {
-      const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0))
-      
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric',
-          timeZone: 'UTC'
-        })
-      }
-    }
-    
-    // Try parsing as ISO date
-    const date = new Date(dateString)
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        timeZone: 'UTC'
-      })
-    }
-    
-    console.warn('Could not parse date:', dateString)
-    return dateString
+    // Fallback to original string
+    return dateStr
   }
 
   const salesChartData = {

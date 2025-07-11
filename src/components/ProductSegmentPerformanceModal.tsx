@@ -181,7 +181,7 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
         body: {
           sql: `
             SELECT 
-              DATE("Inventory Date") as inventory_date,
+              TO_CHAR(DATE("Inventory Date"), 'YYYY-MM-DD') as inventory_date,
               SUM("Product Gross Receipts") as gross_receipts,
               SUM("Product Units Remaining") as units_remaining,
               SUM("Product Units Sold") as units_sold
@@ -203,6 +203,15 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
       }
 
       const timeSeriesData = timeSeriesResponse.data?.data?.data || []
+      
+      // Debug: Log the exact date values we're getting
+      if (timeSeriesData.length > 0) {
+        console.log('[ProductSegmentPerformance] Sample date values:', timeSeriesData.slice(0, 3).map((row: any[]) => ({
+          raw: row[0],
+          type: typeof row[0],
+          parsed: formatDate(row[0])
+        })))
+      }
       
       // Process the data
       const processedMetrics: ProductMetrics = {
@@ -283,21 +292,53 @@ export default function ProductSegmentPerformanceModal({ segment, onClose }: Pro
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return ''
     
-    // Handle Snowflake date format (YYYY-MM-DD)
-    // Create date at noon UTC to avoid timezone issues
-    const [year, month, day] = dateStr.split(/[-T]/).slice(0, 3)
-    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0))
-    
-    if (isNaN(date.getTime())) {
-      console.warn('Invalid date:', dateStr)
-      return dateStr
+    try {
+      // Check if the date is already in YYYY-MM-DD format
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, month, day] = dateStr.split('-').map(Number)
+        const date = new Date(Date.UTC(year, month - 1, day))
+        
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            timeZone: 'UTC'
+          })
+        }
+      }
+      
+      // Check if it's a number (possibly Excel serial date or similar)
+      const numericDate = Number(dateStr)
+      if (!isNaN(numericDate) && numericDate > 40000 && numericDate < 60000) {
+        // This might be an Excel serial date
+        // Excel dates start from 1900-01-01 as day 1
+        // But there's a leap year bug, so we need to subtract 1 for dates after Feb 28, 1900
+        const excelEpoch = new Date(1899, 11, 30) // December 30, 1899
+        const date = new Date(excelEpoch.getTime() + numericDate * 24 * 60 * 60 * 1000)
+        
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            timeZone: 'UTC'
+          })
+        }
+      }
+      
+      // Try parsing as a regular date string
+      const date = new Date(dateStr)
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric'
+        })
+      }
+    } catch (error) {
+      console.warn('Error parsing date:', dateStr, error)
     }
     
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      timeZone: 'UTC'
-    })
+    // Fallback to original string
+    return dateStr
   }
 
   const formatCurrency = (value: number): string => {
