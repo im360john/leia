@@ -205,6 +205,7 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
       if (response.error) throw response.error
 
       const data = response.data?.data?.data || []
+      console.log('[SegmentPerformance] Raw trend data from Snowflake:', data.slice(0, 5)) // Log first 5 rows
       const trends: TrendData[] = data.map((row: any[]) => ({
         date: row[0],
         sales: parseFloat(row[1]) || 0,
@@ -354,24 +355,61 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
     }
   }
 
-  const formatDate = (dateStr: string): string => {
+  const formatDate = (dateStr: string | number): string => {
     if (!dateStr) return ''
     
-    // Handle Snowflake date format (YYYY-MM-DD)
-    // Create date at noon UTC to avoid timezone issues
-    const [year, month, day] = dateStr.split(/[-T]/).slice(0, 3)
-    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0))
+    // Convert to string if number
+    const dateString = String(dateStr)
     
-    if (isNaN(date.getTime())) {
-      console.warn('Invalid date:', dateStr)
-      return dateStr
+    // Log the raw date value for debugging
+    console.log('[SegmentPerformance] Formatting date:', dateString)
+    
+    // Check if it's a number that looks like YYYYDDD format (e.g., 2025001 for Jan 1, 2025)
+    if (/^\d{7,8}$/.test(dateString)) {
+      // This appears to be a Julian date or year + day of year format
+      const yearStr = dateString.substring(0, 4)
+      const dayOfYear = parseInt(dateString.substring(4))
+      const year = parseInt(yearStr)
+      
+      // Create date from year and day of year
+      const date = new Date(year, 0) // Start with Jan 1 of the year
+      date.setDate(dayOfYear) // Add the day of year
+      
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          timeZone: 'UTC'
+        })
+      }
     }
     
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      timeZone: 'UTC'
-    })
+    // Handle standard date formats (YYYY-MM-DD)
+    const [year, month, day] = dateString.split(/[-T]/).slice(0, 3)
+    if (year && month && day) {
+      const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0))
+      
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          timeZone: 'UTC'
+        })
+      }
+    }
+    
+    // Try parsing as ISO date
+    const date = new Date(dateString)
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        timeZone: 'UTC'
+      })
+    }
+    
+    console.warn('Could not parse date:', dateString)
+    return dateString
   }
 
   const salesChartData = {
