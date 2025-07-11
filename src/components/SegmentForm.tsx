@@ -762,11 +762,13 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
                   <span className="inline-block w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></span>
                   Calculating customer count...
                 </span>
-              ) : (
+              ) : estimatedCount !== null ? (
                 <>
                   This segment will include approximately <span className="font-medium text-purple-600">{estimatedCount.toLocaleString()}</span> customers
                   {snowflakeError && <span className="text-orange-600 ml-2">(Demo mode)</span>}
                 </>
+              ) : (
+                <span className="text-gray-500">Click "Count Customers" to see segment size</span>
               )}
             </div>
             <div className="flex items-center gap-3">
