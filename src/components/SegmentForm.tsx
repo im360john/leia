@@ -757,7 +757,7 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
           {/* Footer */}
           <div className="p-6 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              {isLoadingCount ? (
+              {isCountingCustomers ? (
                 <span className="flex items-center gap-2">
                   <span className="inline-block w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></span>
                   Calculating customer count...
