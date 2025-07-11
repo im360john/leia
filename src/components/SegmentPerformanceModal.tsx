@@ -3,6 +3,7 @@ import { X, TrendingUp, DollarSign, ShoppingCart, Calendar, Filter } from 'lucid
 import { Segment } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { logger } from '../lib/logger'
+import { buildSegmentAnalyticsQuery, buildSegmentSQL } from '../lib/segmentUtils'
 import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -102,28 +103,21 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
 
   const loadCustomerMetrics = async () => {
     try {
-      // Build the base WHERE clause for the segment
-      const whereClause = segment.where_clause || ''
+      // Get filter groups from segment criteria
+      const filterGroups = segment.criteria?.filterGroups || []
       
-      const sql = `
-        SELECT 
-          COUNT(*) as total_customers,
-          AVG(LIFETIME_GROSS_RECEIPTS) as avg_lifetime_gross_receipts,
-          SUM(LIFETIME_GROSS_RECEIPTS) as total_lifetime_gross_receipts,
-          AVG(LIFETIME_TRANSACTIONS) as avg_lifetime_transactions,
-          SUM(LIFETIME_TRANSACTIONS) as total_lifetime_transactions,
-          AVG(LIFETIME_DISCOUNTS) as avg_lifetime_discounts,
-          SUM(LIFETIME_DISCOUNTS) as total_lifetime_discounts
-        FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT
-        WHERE ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
-        ${whereClause ? `AND (${whereClause})` : ''}
-      `
+      // Build queries using the utility function
+      const { customerQuery } = buildSegmentAnalyticsQuery(
+        filterGroups, 
+        dateRange,
+        { brand: productBrand, type: productType, subtype: productSubtype }
+      )
       
-      console.log('[SegmentPerformance] Customer metrics query:', sql)
+      console.log('[SegmentPerformance] Customer metrics query:', customerQuery)
       
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          sql,
+          sql: customerQuery,
           database: 'RETAIL_ANALYTICS',
           warehouse: 'RETAIL_ANALYTICS'
         }
@@ -150,35 +144,21 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
 
   const loadSalesMetrics = async () => {
     try {
-      // Build WHERE clause with customer filter from segment
-      const dateFilter = `DATE_CLOSE >= DATEADD(day, -${dateRange}, CURRENT_DATE())`
-      const productFilters = []
-      if (productBrand) productFilters.push(`PRODUCT_BRAND = '${productBrand}'`)
-      if (productType) productFilters.push(`PRODUCT_TYPE = '${productType}'`)
-      if (productSubtype) productFilters.push(`PRODUCT_SUBTYPE = '${productSubtype}'`)
+      // Get filter groups from segment criteria
+      const filterGroups = segment.criteria?.filterGroups || []
       
-      const sql = `
-        SELECT 
-          SUM(s.GROSS_RECEIPTS) as total_sales,
-          COUNT(DISTINCT s.TICKET_ID) as transaction_count,
-          SUM(s.GROSS_RECEIPTS) / NULLIF(COUNT(DISTINCT s.TICKET_ID), 0) as aov,
-          SUM(s.DISCOUNTS) as total_discounts
-        FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES s
-        INNER JOIN RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
-          ON s.ORG_ID = c.ORG_ID 
-          AND s.STORE_ID = c.STORE_ID 
-          AND s.CUSTOMER_ID = c.CUSTOMER_ID
-        WHERE s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
-          AND ${dateFilter}
-          ${segment.where_clause ? `AND (${segment.where_clause})` : ''}
-          ${productFilters.length > 0 ? `AND ${productFilters.join(' AND ')}` : ''}
-      `
+      // Build queries using the utility function
+      const { salesQuery } = buildSegmentAnalyticsQuery(
+        filterGroups, 
+        dateRange,
+        { brand: productBrand, type: productType, subtype: productSubtype }
+      )
       
-      console.log('[SegmentPerformance] Sales metrics query:', sql)
+      console.log('[SegmentPerformance] Sales metrics query:', salesQuery)
       
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          sql,
+          sql: salesQuery,
           database: 'RETAIL_ANALYTICS',
           warehouse: 'RETAIL_ANALYTICS'
         }
@@ -202,37 +182,21 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
 
   const loadTrendData = async () => {
     try {
-      const dateFilter = `DATE_CLOSE >= DATEADD(day, -${dateRange}, CURRENT_DATE())`
-      const productFilters = []
-      if (productBrand) productFilters.push(`PRODUCT_BRAND = '${productBrand}'`)
-      if (productType) productFilters.push(`PRODUCT_TYPE = '${productType}'`)
-      if (productSubtype) productFilters.push(`PRODUCT_SUBTYPE = '${productSubtype}'`)
+      // Get filter groups from segment criteria
+      const filterGroups = segment.criteria?.filterGroups || []
       
-      const sql = `
-        SELECT 
-          DATE(s.DATE_CLOSE) as sale_date,
-          SUM(s.GROSS_RECEIPTS) as daily_sales,
-          COUNT(DISTINCT s.TICKET_ID) as daily_transactions,
-          SUM(s.GROSS_RECEIPTS) / NULLIF(COUNT(DISTINCT s.TICKET_ID), 0) as daily_aov,
-          SUM(s.DISCOUNTS) as daily_discounts
-        FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES s
-        INNER JOIN RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
-          ON s.ORG_ID = c.ORG_ID 
-          AND s.STORE_ID = c.STORE_ID 
-          AND s.CUSTOMER_ID = c.CUSTOMER_ID
-        WHERE s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
-          AND ${dateFilter}
-          ${segment.where_clause ? `AND (${segment.where_clause})` : ''}
-          ${productFilters.length > 0 ? `AND ${productFilters.join(' AND ')}` : ''}
-        GROUP BY DATE(s.DATE_CLOSE)
-        ORDER BY sale_date ASC
-      `
+      // Build queries using the utility function
+      const { trendQuery } = buildSegmentAnalyticsQuery(
+        filterGroups, 
+        dateRange,
+        { brand: productBrand, type: productType, subtype: productSubtype }
+      )
       
-      console.log('[SegmentPerformance] Trend data query:', sql)
+      console.log('[SegmentPerformance] Trend data query:', trendQuery)
       
       const response = await supabase.functions.invoke('snowflake', {
         body: {
-          sql,
+          sql: trendQuery,
           database: 'RETAIL_ANALYTICS',
           warehouse: 'RETAIL_ANALYTICS'
         }
@@ -259,16 +223,27 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
     try {
       console.log('[SegmentPerformance] Loading filter options')
       
+      // Get filter groups from segment criteria
+      const filterGroups = segment.criteria?.filterGroups || []
+      const { customerWhere, salesWhere, needsJoin } = buildSegmentSQL(filterGroups)
+      
       // Build base WHERE clause for all queries
-      const baseWhere = `s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
-        AND s.DATE_CLOSE >= DATEADD(day, -90, CURRENT_DATE())
-        ${segment.where_clause ? `AND EXISTS (
+      let baseWhere = `s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
+        AND s.DATE_CLOSE >= DATEADD(day, -90, CURRENT_DATE())`
+        
+      if (needsJoin || customerWhere) {
+        baseWhere += ` AND EXISTS (
           SELECT 1 FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
           WHERE c.ORG_ID = s.ORG_ID 
           AND c.STORE_ID = s.STORE_ID 
           AND c.CUSTOMER_ID = s.CUSTOMER_ID
-          AND (${segment.where_clause})
-        )` : ''}`
+          ${customerWhere ? `AND (${customerWhere})` : ''}
+        )`
+      }
+      
+      if (salesWhere) {
+        baseWhere += ` AND (${salesWhere})`
+      }
 
       // Query 1: Get distinct brands
       const brandsSql = `

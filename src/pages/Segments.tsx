@@ -45,9 +45,9 @@ export function Segments() {
       const segmentsWithUpdatedCounts = await Promise.all(
         data.map(async (segment) => {
           try {
-            if (segment.where_clause) {
+            if (segment.criteria?.filterGroups && segment.criteria.filterGroups.length > 0) {
               console.log(`[Segments] Updating count for segment: ${segment.name}`)
-              const result = await snowflakeAPI.getCustomerCount(segment.where_clause)
+              const result = await snowflakeAPI.getCustomerCountFromFilters(segment.criteria.filterGroups)
               return {
                 ...segment,
                 customer_count: result.count

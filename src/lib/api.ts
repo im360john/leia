@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Campaign, Segment, AnalyticsData } from './supabase'
+import { buildCustomerCountQuery, type FilterGroup } from './segmentUtils'
 
 // For development, we'll use direct Supabase calls instead of edge functions
 // This ensures the app works while edge functions are being set up
@@ -406,6 +407,47 @@ export const snowflakeAPI = {
       }
     } catch (error) {
       console.error('Failed to preview customers:', error)
+      throw error
+    }
+  },
+
+  async getCustomerCountFromFilters(filterGroups: FilterGroup[]): Promise<{ count: number }> {
+    try {
+      console.log('[SnowflakeAPI] Getting customer count from filter groups:', filterGroups)
+      
+      // Build the SQL query from filter groups
+      const sqlQuery = buildCustomerCountQuery(filterGroups)
+      
+      console.log('[SnowflakeAPI] Generated SQL query:', sqlQuery)
+      
+      // Execute the count query using Snowflake edge function
+      const response = await supabase.functions.invoke('snowflake', {
+        body: {
+          sql: sqlQuery,
+          database: 'RETAIL_ANALYTICS',
+          warehouse: 'RETAIL_ANALYTICS'
+        }
+      })
+
+      console.log('[SnowflakeAPI] Count query response:', response)
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to execute count query')
+      }
+
+      // Extract count from response
+      let count = 0;
+      
+      // Snowflake returns data in a nested array structure
+      if (response.data?.success && response.data?.data?.data) {
+        const countValue = response.data.data.data[0][0];
+        count = parseInt(countValue, 10) || 0;
+        console.log('[SnowflakeAPI] Extracted count:', count);
+      }
+      
+      return { count }
+    } catch (error) {
+      console.error('[SnowflakeAPI] Failed to get customer count from filters:', error)
       throw error
     }
   },

@@ -21,6 +21,7 @@ interface FilterRule {
   operator: string
   value: string | number
   valueType: 'text' | 'number' | 'date' | 'select'
+  table?: 'customer' | 'sales'
 }
 
 interface FilterGroup {
@@ -32,59 +33,59 @@ interface FilterGroup {
 const FILTER_FIELDS = {
   customer: [
     // Personal Information
-    { value: 'FIRST_NAME', label: 'First Name', type: 'text', icon: User },
-    { value: 'LAST_NAME', label: 'Last Name', type: 'text', icon: User },
-    { value: 'EMAIL', label: 'Email', type: 'text', icon: Mail },
-    { value: 'PHONE', label: 'Phone', type: 'text', icon: User },
-    { value: 'GENDER', label: 'Gender', type: 'text', icon: User },
-    { value: 'DATE_OF_BIRTH', label: 'Date of Birth', type: 'date', icon: Calendar },
-    { value: 'CUSTOMER_STATUS', label: 'Customer Status', type: 'text', icon: User },
-    { value: 'CUSTOMER_TYPE', label: 'Customer Type', type: 'text', icon: User },
-    { value: 'CUSTOMER_GROUPS', label: 'Customer Groups', type: 'text', icon: Users },
-    { value: 'OPTED_IN', label: 'Opted In', type: 'select', icon: Mail, options: ['true', 'false'] },
-    { value: 'VIOLATIONS', label: 'Violations', type: 'number', icon: User },
+    { value: 'FIRST_NAME', label: 'First Name', type: 'text', icon: User, table: 'customer' },
+    { value: 'LAST_NAME', label: 'Last Name', type: 'text', icon: User, table: 'customer' },
+    { value: 'EMAIL', label: 'Email', type: 'text', icon: Mail, table: 'customer' },
+    { value: 'PHONE', label: 'Phone', type: 'text', icon: User, table: 'customer' },
+    { value: 'GENDER', label: 'Gender', type: 'text', icon: User, table: 'customer' },
+    { value: 'DATE_OF_BIRTH', label: 'Date of Birth', type: 'date', icon: Calendar, table: 'customer' },
+    { value: 'CUSTOMER_STATUS', label: 'Customer Status', type: 'text', icon: User, table: 'customer' },
+    { value: 'CUSTOMER_TYPE', label: 'Customer Type', type: 'text', icon: User, table: 'customer' },
+    { value: 'CUSTOMER_GROUPS', label: 'Customer Groups', type: 'text', icon: Users, table: 'customer' },
+    { value: 'OPTED_IN', label: 'Opted In', type: 'select', icon: Mail, options: ['true', 'false'], table: 'customer' },
+    { value: 'VIOLATIONS', label: 'Violations', type: 'number', icon: User, table: 'customer' },
   ],
   address: [
-    { value: 'CUSTOMER_ADDRESS', label: 'Full Address', type: 'text', icon: MapPin },
-    { value: 'ADDRESS_STREET_1', label: 'Street Address', type: 'text', icon: MapPin },
-    { value: 'ADDRESS_CITY', label: 'City', type: 'text', icon: MapPin },
-    { value: 'ADDRESS_STATE', label: 'State', type: 'text', icon: MapPin },
-    { value: 'ADDRESS_COUNTRY', label: 'Country', type: 'text', icon: MapPin },
-    { value: 'ADDRESS_ZIPCODE', label: 'Zip Code', type: 'text', icon: MapPin },
+    { value: 'CUSTOMER_ADDRESS', label: 'Full Address', type: 'text', icon: MapPin, table: 'customer' },
+    { value: 'ADDRESS_STREET_1', label: 'Street Address', type: 'text', icon: MapPin, table: 'customer' },
+    { value: 'ADDRESS_CITY', label: 'City', type: 'text', icon: MapPin, table: 'customer' },
+    { value: 'ADDRESS_STATE', label: 'State', type: 'text', icon: MapPin, table: 'customer' },
+    { value: 'ADDRESS_COUNTRY', label: 'Country', type: 'text', icon: MapPin, table: 'customer' },
+    { value: 'ADDRESS_ZIPCODE', label: 'Zip Code', type: 'text', icon: MapPin, table: 'customer' },
   ],
   purchase: [
-    { value: 'LIFETIME_NET_SALES', label: 'Lifetime Net Sales', type: 'number', icon: DollarSign },
-    { value: 'LIFETIME_GROSS_SALES', label: 'Lifetime Gross Sales', type: 'number', icon: DollarSign },
-    { value: 'LIFETIME_DISCOUNTS', label: 'Lifetime Discounts', type: 'number', icon: DollarSign },
-    { value: 'LIFETIME_TRANSACTIONS', label: 'Lifetime Transactions', type: 'number', icon: ShoppingCart },
-    { value: 'LIFETIME_GROSS_RECEIPTS', label: 'Lifetime Gross Receipts', type: 'number', icon: DollarSign },
-    { value: 'TOTAL_VISITS', label: 'Total Visits', type: 'number', icon: ShoppingCart },
-    { value: 'TOTAL_VISITS_WITH_PURCHASES', label: 'Visits with Purchases', type: 'number', icon: ShoppingCart },
-    { value: 'NEVER_MADE_PURCHASE', label: 'Never Made Purchase', type: 'select', icon: ShoppingCart, options: ['true', 'false'] },
-    { value: 'REWARDS_POINTS', label: 'Rewards Points', type: 'number', icon: DollarSign },
-    { value: 'REWARDS_REDEEMED_GROSS', label: 'Rewards Redeemed (Gross)', type: 'number', icon: DollarSign },
-    { value: 'REWARDS_REFUNDED', label: 'Rewards Refunded', type: 'number', icon: DollarSign },
-    { value: 'REWARDS_REDEEMED_NET', label: 'Rewards Redeemed (Net)', type: 'number', icon: DollarSign },
-    { value: 'PRODUCT_BRAND', label: 'Product Brand', type: 'select', icon: ShoppingCart, options: [] },
-    { value: 'PRODUCT_TYPE', label: 'Product Type', type: 'select', icon: ShoppingCart, options: [] },
-    { value: 'PRODUCT_SUBTYPE', label: 'Product Subtype', type: 'select', icon: ShoppingCart, options: [] },
+    { value: 'LIFETIME_NET_SALES', label: 'Lifetime Net Sales', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'LIFETIME_GROSS_SALES', label: 'Lifetime Gross Sales', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'LIFETIME_DISCOUNTS', label: 'Lifetime Discounts', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'LIFETIME_TRANSACTIONS', label: 'Lifetime Transactions', type: 'number', icon: ShoppingCart, table: 'customer' },
+    { value: 'LIFETIME_GROSS_RECEIPTS', label: 'Lifetime Gross Receipts', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'TOTAL_VISITS', label: 'Total Visits', type: 'number', icon: ShoppingCart, table: 'customer' },
+    { value: 'TOTAL_VISITS_WITH_PURCHASES', label: 'Visits with Purchases', type: 'number', icon: ShoppingCart, table: 'customer' },
+    { value: 'NEVER_MADE_PURCHASE', label: 'Never Made Purchase', type: 'select', icon: ShoppingCart, options: ['true', 'false'], table: 'customer' },
+    { value: 'REWARDS_POINTS', label: 'Rewards Points', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'REWARDS_REDEEMED_GROSS', label: 'Rewards Redeemed (Gross)', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'REWARDS_REFUNDED', label: 'Rewards Refunded', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'REWARDS_REDEEMED_NET', label: 'Rewards Redeemed (Net)', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'PRODUCT_BRAND', label: 'Product Brand', type: 'select', icon: ShoppingCart, options: [], table: 'sales' },
+    { value: 'PRODUCT_TYPE', label: 'Product Type', type: 'select', icon: ShoppingCart, options: [], table: 'sales' },
+    { value: 'PRODUCT_SUBTYPE', label: 'Product Subtype', type: 'select', icon: ShoppingCart, options: [], table: 'sales' },
   ],
   dates: [
-    { value: 'LAST_VISIT', label: 'Last Visit', type: 'date', icon: Clock },
-    { value: 'SIGNUP_DATE', label: 'Signup Date', type: 'date', icon: Calendar },
-    { value: 'ORIGINAL_PROFILE_SIGNUP_DATE', label: 'Original Signup Date', type: 'date', icon: Calendar },
-    { value: 'CUSTOMER_FIRST_TICKET_TIMESTAMP', label: 'First Purchase Date', type: 'date', icon: Calendar },
-    { value: 'LAST_UPDATED_AT', label: 'Last Updated', type: 'date', icon: Clock },
-    { value: 'LAST_SYNC', label: 'Last Sync', type: 'date', icon: Clock },
+    { value: 'LAST_VISIT', label: 'Last Visit', type: 'date', icon: Clock, table: 'customer' },
+    { value: 'SIGNUP_DATE', label: 'Signup Date', type: 'date', icon: Calendar, table: 'customer' },
+    { value: 'ORIGINAL_PROFILE_SIGNUP_DATE', label: 'Original Signup Date', type: 'date', icon: Calendar, table: 'customer' },
+    { value: 'CUSTOMER_FIRST_TICKET_TIMESTAMP', label: 'First Purchase Date', type: 'date', icon: Calendar, table: 'customer' },
+    { value: 'LAST_UPDATED_AT', label: 'Last Updated', type: 'date', icon: Clock, table: 'customer' },
+    { value: 'LAST_SYNC', label: 'Last Sync', type: 'date', icon: Clock, table: 'customer' },
   ],
   medical: [
-    { value: 'MEDICAL_ID', label: 'Medical ID', type: 'text', icon: User },
-    { value: 'CUSTOMER_MEDICAL_ID_EXP_DATE', label: 'Medical ID Expiration', type: 'date', icon: Calendar },
-    { value: 'CAREGIVER_NAME', label: 'Caregiver Name', type: 'text', icon: User },
-    { value: 'CUSTOMER_PHYSICIAN_FIRST_NAME', label: 'Physician First Name', type: 'text', icon: User },
-    { value: 'CUSTOMER_PHYSICIAN_LAST_NAME', label: 'Physician Last Name', type: 'text', icon: User },
-    { value: 'CUSTOMER_PHYSICIAN_PHONE', label: 'Physician Phone', type: 'text', icon: User },
-    { value: 'CUSTOMER_PHYSICIAN_EMAIL', label: 'Physician Email', type: 'text', icon: Mail },
+    { value: 'MEDICAL_ID', label: 'Medical ID', type: 'text', icon: User, table: 'customer' },
+    { value: 'CUSTOMER_MEDICAL_ID_EXP_DATE', label: 'Medical ID Expiration', type: 'date', icon: Calendar, table: 'customer' },
+    { value: 'CAREGIVER_NAME', label: 'Caregiver Name', type: 'text', icon: User, table: 'customer' },
+    { value: 'CUSTOMER_PHYSICIAN_FIRST_NAME', label: 'Physician First Name', type: 'text', icon: User, table: 'customer' },
+    { value: 'CUSTOMER_PHYSICIAN_LAST_NAME', label: 'Physician Last Name', type: 'text', icon: User, table: 'customer' },
+    { value: 'CUSTOMER_PHYSICIAN_PHONE', label: 'Physician Phone', type: 'text', icon: User, table: 'customer' },
+    { value: 'CUSTOMER_PHYSICIAN_EMAIL', label: 'Physician Email', type: 'text', icon: Mail, table: 'customer' },
   ]
 }
 
@@ -193,7 +194,6 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
   const [isLoadingSchema, setIsLoadingSchema] = useState(false)
   const [isLoadingCount, setIsLoadingCount] = useState(false)
   const [snowflakeColumns, setSnowflakeColumns] = useState<Array<{ name: string; type: string; nullable: boolean; comment: string }>>([])
-  const [whereClause, setWhereClause] = useState(segment?.where_clause || '')
   const [snowflakeError, setSnowflakeError] = useState<string | null>(null)
 
   // Update form when segment prop changes (for editing)
@@ -211,10 +211,6 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
       
       if (segment.customer_count) {
         setEstimatedCount(segment.customer_count)
-      }
-      
-      if (segment.where_clause) {
-        setWhereClause(segment.where_clause)
       }
     }
   }, [segment])
@@ -309,130 +305,30 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
     return null
   }
 
-  // Build WHERE clause from filter groups
-  const buildWhereClause = (groups: FilterGroup[]): string => {
-    console.log('[SegmentForm] Building WHERE clause from groups:', groups)
-    
-    // Check if any product filters are used
-    const hasProductFilters = groups.some(group => 
-      group.rules.some(rule => 
-        ['PRODUCT_BRAND', 'PRODUCT_TYPE', 'PRODUCT_SUBTYPE'].includes(rule.field)
-      )
-    )
-    
-    const groupClauses = groups
-      .filter(group => group.rules.length > 0)
-      .map(group => {
-        const ruleClauses = group.rules
-          .filter(rule => rule.field && rule.operator && (rule.value || ['is_empty', 'is_not_empty'].includes(rule.operator)))
-          .map(rule => {
-            const field = rule.field
-            
-            // For product fields, we need to check in the TICKETLINE_SALES table
-            if (['PRODUCT_BRAND', 'PRODUCT_TYPE', 'PRODUCT_SUBTYPE'].includes(field)) {
-              // These will be handled as a subquery in the Snowflake API
-              switch (rule.operator) {
-                case 'equals':
-                  return `${field} = '${rule.value}'`
-                case 'not_equals':
-                  return `${field} != '${rule.value}'`
-                case 'in':
-                  const inValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
-                  return `${field} IN (${inValues})`
-                case 'not_in':
-                  const notInValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
-                  return `${field} NOT IN (${notInValues})`
-                default:
-                  return null
-              }
-            }
-            
-            switch (rule.operator) {
-              case 'equals':
-                return `${field} = '${rule.value}'`
-              case 'not_equals':
-                return `${field} != '${rule.value}'`
-              case 'contains':
-                return `${field} LIKE '%${rule.value}%'`
-              case 'not_contains':
-                return `${field} NOT LIKE '%${rule.value}%'`
-              case 'starts_with':
-                return `${field} LIKE '${rule.value}%'`
-              case 'ends_with':
-                return `${field} LIKE '%${rule.value}'`
-              case 'is_empty':
-                return `(${field} IS NULL OR ${field} = '')`
-              case 'is_not_empty':
-                return `(${field} IS NOT NULL AND ${field} != '')`
-              case 'greater_than':
-                return `${field} > ${rule.value}`
-              case 'greater_than_equal':
-                return `${field} >= ${rule.value}`
-              case 'less_than':
-                return `${field} < ${rule.value}`
-              case 'less_than_equal':
-                return `${field} <= ${rule.value}`
-              case 'between':
-                const values = String(rule.value).split(',')
-                return `${field} BETWEEN ${values[0]} AND ${values[1]}`
-              case 'after':
-                return `${field} > '${rule.value}'`
-              case 'before':
-                return `${field} < '${rule.value}'`
-              case 'last_days':
-                return `${field} >= DATEADD(day, -${rule.value}, CURRENT_DATE())`
-              case 'next_days':
-                return `${field} <= DATEADD(day, ${rule.value}, CURRENT_DATE())`
-              case 'in':
-                const inValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
-                return `${field} IN (${inValues})`
-              case 'not_in':
-                const notInValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
-                return `${field} NOT IN (${notInValues})`
-              default:
-                return null
-            }
-          })
-          .filter(Boolean)
-          .join(` ${group.logic} `)
-        
-        return ruleClauses ? `(${ruleClauses})` : null
-      })
-      .filter(Boolean)
-    
-    const whereClause = groupClauses.join(' OR ')
-    console.log('[SegmentForm] Built WHERE clause:', whereClause)
-    return whereClause
-  }
 
-  // Update WHERE clause and fetch count when filters change
+  // Update customer count when filters change
   useEffect(() => {
     const updateCount = async () => {
-      const newWhereClause = buildWhereClause(filterGroups)
-      setWhereClause(newWhereClause)
-      
       console.log('[SegmentForm] Filter groups changed:', {
         filterGroups,
-        whereClause: newWhereClause,
         hasSnowflakeError: !!snowflakeError
       })
       
-      if (newWhereClause && !snowflakeError) {
+      const hasRules = filterGroups.some(group => group.rules.length > 0)
+      
+      if (hasRules && !snowflakeError) {
         setIsLoadingCount(true)
         try {
-          console.log('[SegmentForm] Fetching customer count for WHERE clause:', newWhereClause)
-          const result = await snowflakeAPI.getCustomerCount(newWhereClause)
+          console.log('[SegmentForm] Fetching customer count for filter groups')
+          const result = await snowflakeAPI.getCustomerCountFromFilters(filterGroups)
           setEstimatedCount(result.count)
           
           console.log('[SegmentForm] Customer count updated:', {
-            whereClause: newWhereClause,
-            count: result.count,
-            fullWhereClause: result.whereClause
+            count: result.count
           })
           
           logger.debug('Updated customer count', {
             component: 'SegmentForm',
-            whereClause: newWhereClause,
             count: result.count
           })
         } catch (error) {
@@ -449,7 +345,7 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
         } finally {
           setIsLoadingCount(false)
         }
-      } else if (!newWhereClause) {
+      } else if (!hasRules) {
         // No filters, get total count
         console.log('[SegmentForm] No filters, fetching total count')
         setIsLoadingCount(true)
@@ -483,7 +379,7 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
       filterGroupsCount: filterGroups.length
     })
     
-    const segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at' | 'user_id'> & { user_id?: string; where_clause?: string } = {
+    const segmentData: Omit<Segment, 'id' | 'created_at' | 'updated_at' | 'user_id'> & { user_id?: string } = {
       name: formData.name,
       description: formData.description,
       type: formData.type as 'behavioral' | 'predictive',
@@ -492,8 +388,7 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
         estimatedCount
       },
       customer_count: estimatedCount,
-      growth_rate: segment?.growth_rate,
-      where_clause: whereClause
+      growth_rate: segment?.growth_rate
     }
     
     // Only include user_id for new segments
@@ -821,6 +716,7 @@ export function SegmentForm({ segment, onSave, onCancel, productFilters }: Segme
                                 updateRule(group.id, rule.id, {
                                   field: e.target.value,
                                   valueType: fieldInfo?.type || 'text',
+                                  table: fieldInfo?.table || 'customer',
                                   operator: '',
                                   value: ''
                                 })
