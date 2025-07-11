@@ -355,7 +355,10 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
   }
 
   const salesChartData = {
-    labels: trendData.map(d => new Date(d.date).toLocaleDateString()),
+    labels: trendData.map(d => new Date(d.date).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    })),
     datasets: [
       {
         label: 'Daily Sales',
