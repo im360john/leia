@@ -257,47 +257,98 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
 
   const loadFilterOptions = async () => {
     try {
-      // Load unique filter values
-      const sql = `
-        SELECT DISTINCT 
-          s.PRODUCT_BRAND,
-          s.PRODUCT_TYPE,
-          s.PRODUCT_SUBTYPE
+      console.log('[SegmentPerformance] Loading filter options')
+      
+      // Build base WHERE clause for all queries
+      const baseWhere = `s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
+        AND s.DATE_CLOSE >= DATEADD(day, -90, CURRENT_DATE())
+        ${segment.where_clause ? `AND EXISTS (
+          SELECT 1 FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
+          WHERE c.ORG_ID = s.ORG_ID 
+          AND c.STORE_ID = s.STORE_ID 
+          AND c.CUSTOMER_ID = s.CUSTOMER_ID
+          AND (${segment.where_clause})
+        )` : ''}`
+
+      // Query 1: Get distinct brands
+      const brandsSql = `
+        SELECT DISTINCT s.PRODUCT_BRAND
         FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES s
-        INNER JOIN RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
-          ON s.ORG_ID = c.ORG_ID 
-          AND s.STORE_ID = c.STORE_ID 
-          AND s.CUSTOMER_ID = c.CUSTOMER_ID
-        WHERE s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
-          ${segment.where_clause ? `AND (${segment.where_clause})` : ''}
-          AND s.DATE_CLOSE >= DATEADD(day, -90, CURRENT_DATE())
-        LIMIT 1000
+        WHERE ${baseWhere}
+          AND s.PRODUCT_BRAND IS NOT NULL
+          AND s.PRODUCT_BRAND != ''
+        ORDER BY s.PRODUCT_BRAND
+        LIMIT 100
       `
       
-      const response = await supabase.functions.invoke('snowflake', {
-        body: {
-          sql,
-          database: 'RETAIL_ANALYTICS',
-          warehouse: 'RETAIL_ANALYTICS'
-        }
-      })
-
-      if (response.error) throw response.error
-
-      const data = response.data?.data?.data || []
-      const uniqueBrands = new Set<string>()
-      const uniqueTypes = new Set<string>()
-      const uniqueSubtypes = new Set<string>()
+      // Query 2: Get distinct types
+      const typesSql = `
+        SELECT DISTINCT s.PRODUCT_TYPE
+        FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES s
+        WHERE ${baseWhere}
+          AND s.PRODUCT_TYPE IS NOT NULL
+          AND s.PRODUCT_TYPE != ''
+        ORDER BY s.PRODUCT_TYPE
+        LIMIT 100
+      `
       
-      data.forEach((row: any[]) => {
-        if (row[0]) uniqueBrands.add(row[0])
-        if (row[1]) uniqueTypes.add(row[1])
-        if (row[2]) uniqueSubtypes.add(row[2])
-      })
+      // Query 3: Get distinct subtypes
+      const subtypesSql = `
+        SELECT DISTINCT s.PRODUCT_SUBTYPE
+        FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES s
+        WHERE ${baseWhere}
+          AND s.PRODUCT_SUBTYPE IS NOT NULL
+          AND s.PRODUCT_SUBTYPE != ''
+        ORDER BY s.PRODUCT_SUBTYPE
+        LIMIT 100
+      `
+
+      // Execute all queries in parallel
+      const [brandsResponse, typesResponse, subtypesResponse] = await Promise.all([
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: brandsSql,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: typesSql,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: subtypesSql,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        })
+      ])
+
+      // Process brands
+      if (!brandsResponse.error && brandsResponse.data?.data?.data) {
+        const brandsList = brandsResponse.data.data.data.map((row: any[]) => row[0]).filter(Boolean)
+        setBrands(brandsList)
+        console.log('[SegmentPerformance] Loaded brands:', brandsList.length)
+      }
+
+      // Process types
+      if (!typesResponse.error && typesResponse.data?.data?.data) {
+        const typesList = typesResponse.data.data.data.map((row: any[]) => row[0]).filter(Boolean)
+        setTypes(typesList)
+        console.log('[SegmentPerformance] Loaded types:', typesList.length)
+      }
+
+      // Process subtypes
+      if (!subtypesResponse.error && subtypesResponse.data?.data?.data) {
+        const subtypesList = subtypesResponse.data.data.data.map((row: any[]) => row[0]).filter(Boolean)
+        setSubtypes(subtypesList)
+        console.log('[SegmentPerformance] Loaded subtypes:', subtypesList.length)
+      }
       
-      setBrands(Array.from(uniqueBrands).sort())
-      setTypes(Array.from(uniqueTypes).sort())
-      setSubtypes(Array.from(uniqueSubtypes).sort())
     } catch (error) {
       console.error('[SegmentPerformance] Error loading filter options:', error)
     }
