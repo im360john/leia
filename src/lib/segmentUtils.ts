@@ -181,22 +181,54 @@ export function buildSegmentAnalyticsQuery(
   const orgFilter = "c.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'"
   
   // Build customer metrics query
-  const customerWhereClause = customerWhere 
-    ? `${orgFilter} AND (${customerWhere})`
-    : orgFilter
-    
-  const customerQuery = `
-    SELECT 
-      COUNT(*) as total_customers,
-      AVG(LIFETIME_GROSS_RECEIPTS) as avg_lifetime_gross_receipts,
-      SUM(LIFETIME_GROSS_RECEIPTS) as total_lifetime_gross_receipts,
-      AVG(LIFETIME_TRANSACTIONS) as avg_lifetime_transactions,
-      SUM(LIFETIME_TRANSACTIONS) as total_lifetime_transactions,
-      AVG(LIFETIME_DISCOUNTS) as avg_lifetime_discounts,
-      SUM(LIFETIME_DISCOUNTS) as total_lifetime_discounts
-    FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
-    WHERE ${customerWhereClause}
-  `
+  let customerQuery = ''
+  
+  if (!needsJoin || !salesWhere) {
+    // Simple case: only customer conditions
+    const customerWhereClause = customerWhere 
+      ? `${orgFilter} AND (${customerWhere})`
+      : orgFilter
+      
+    customerQuery = `
+      SELECT 
+        COUNT(*) as total_customers,
+        AVG(LIFETIME_GROSS_RECEIPTS) as avg_lifetime_gross_receipts,
+        SUM(LIFETIME_GROSS_RECEIPTS) as total_lifetime_gross_receipts,
+        AVG(LIFETIME_TRANSACTIONS) as avg_lifetime_transactions,
+        SUM(LIFETIME_TRANSACTIONS) as total_lifetime_transactions,
+        AVG(LIFETIME_DISCOUNTS) as avg_lifetime_discounts,
+        SUM(LIFETIME_DISCOUNTS) as total_lifetime_discounts
+      FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
+      WHERE ${customerWhereClause}
+    `
+  } else {
+    // Complex case: need to filter customers based on their sales
+    const customerWhereClause = customerWhere 
+      ? `${orgFilter} AND (${customerWhere})`
+      : orgFilter
+      
+    customerQuery = `
+      WITH filtered_customers AS (
+        SELECT DISTINCT c.*
+        FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
+        INNER JOIN RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES s
+          ON c.ORG_ID = s.ORG_ID 
+          AND c.STORE_ID = s.STORE_ID 
+          AND c.CUSTOMER_ID = s.CUSTOMER_ID
+        WHERE ${customerWhereClause}
+          ${salesWhere ? `AND (${salesWhere})` : ''}
+      )
+      SELECT 
+        COUNT(*) as total_customers,
+        AVG(LIFETIME_GROSS_RECEIPTS) as avg_lifetime_gross_receipts,
+        SUM(LIFETIME_GROSS_RECEIPTS) as total_lifetime_gross_receipts,
+        AVG(LIFETIME_TRANSACTIONS) as avg_lifetime_transactions,
+        SUM(LIFETIME_TRANSACTIONS) as total_lifetime_transactions,
+        AVG(LIFETIME_DISCOUNTS) as avg_lifetime_discounts,
+        SUM(LIFETIME_DISCOUNTS) as total_lifetime_discounts
+      FROM filtered_customers
+    `
+  }
   
   // Build sales metrics query
   const dateFilter = `s.DATE_CLOSE >= DATEADD(day, -${dateRange}, CURRENT_DATE())`

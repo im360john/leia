@@ -66,6 +66,7 @@ const FILTER_FIELDS = {
     { value: 'REWARDS_REDEEMED_GROSS', label: 'Rewards Redeemed (Gross)', type: 'number', icon: DollarSign, table: 'customer' },
     { value: 'REWARDS_REFUNDED', label: 'Rewards Refunded', type: 'number', icon: DollarSign, table: 'customer' },
     { value: 'REWARDS_REDEEMED_NET', label: 'Rewards Redeemed (Net)', type: 'number', icon: DollarSign, table: 'customer' },
+    { value: 'DATE_CLOSE', label: 'Purchase Date', type: 'date', icon: Calendar, table: 'sales' },
     { value: 'PRODUCT_BRAND', label: 'Product Brand', type: 'select', icon: ShoppingCart, options: [], table: 'sales' },
     { value: 'PRODUCT_TYPE', label: 'Product Type', type: 'select', icon: ShoppingCart, options: [], table: 'sales' },
     { value: 'PRODUCT_SUBTYPE', label: 'Product Subtype', type: 'select', icon: ShoppingCart, options: [], table: 'sales' },
