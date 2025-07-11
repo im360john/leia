@@ -8,6 +8,11 @@ interface SegmentFormProps {
   segment?: Segment | null
   onSave: (data: Omit<Segment, 'id' | 'created_at' | 'updated_at'>) => void | Promise<void>
   onCancel: () => void
+  productFilters?: {
+    brands: string[]
+    types: string[]
+    subtypes: string[]
+  }
 }
 
 interface FilterRule {
@@ -60,6 +65,9 @@ const FILTER_FIELDS = {
     { value: 'REWARDS_REDEEMED_GROSS', label: 'Rewards Redeemed (Gross)', type: 'number', icon: DollarSign },
     { value: 'REWARDS_REFUNDED', label: 'Rewards Refunded', type: 'number', icon: DollarSign },
     { value: 'REWARDS_REDEEMED_NET', label: 'Rewards Redeemed (Net)', type: 'number', icon: DollarSign },
+    { value: 'PRODUCT_BRAND', label: 'Product Brand', type: 'select', icon: ShoppingCart, options: [] },
+    { value: 'PRODUCT_TYPE', label: 'Product Type', type: 'select', icon: ShoppingCart, options: [] },
+    { value: 'PRODUCT_SUBTYPE', label: 'Product Subtype', type: 'select', icon: ShoppingCart, options: [] },
   ],
   dates: [
     { value: 'LAST_VISIT', label: 'Last Visit', type: 'date', icon: Clock },
@@ -121,12 +129,44 @@ const OPERATORS = {
   ]
 }
 
-export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
+export function SegmentForm({ segment, onSave, onCancel, productFilters }: SegmentFormProps) {
   const [formData, setFormData] = useState({
     name: segment?.name || '',
     description: segment?.description || '',
     type: segment?.type || 'behavioral' as const,
   })
+
+  // Create filter fields with dynamic product options
+  const getFilterFields = () => {
+    const fields = { ...FILTER_FIELDS }
+    
+    // Update product filter options if available
+    if (productFilters) {
+      const purchaseFields = [...fields.purchase]
+      
+      // Update PRODUCT_BRAND options
+      const brandIndex = purchaseFields.findIndex(f => f.value === 'PRODUCT_BRAND')
+      if (brandIndex !== -1) {
+        purchaseFields[brandIndex] = { ...purchaseFields[brandIndex], options: productFilters.brands }
+      }
+      
+      // Update PRODUCT_TYPE options
+      const typeIndex = purchaseFields.findIndex(f => f.value === 'PRODUCT_TYPE')
+      if (typeIndex !== -1) {
+        purchaseFields[typeIndex] = { ...purchaseFields[typeIndex], options: productFilters.types }
+      }
+      
+      // Update PRODUCT_SUBTYPE options
+      const subtypeIndex = purchaseFields.findIndex(f => f.value === 'PRODUCT_SUBTYPE')
+      if (subtypeIndex !== -1) {
+        purchaseFields[subtypeIndex] = { ...purchaseFields[subtypeIndex], options: productFilters.subtypes }
+      }
+      
+      fields.purchase = purchaseFields
+    }
+    
+    return fields
+  }
 
   const [filterGroups, setFilterGroups] = useState<FilterGroup[]>(() => {
     // Load filter groups from existing segment if editing
@@ -262,7 +302,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
   }
 
   const getFieldInfo = (fieldValue: string) => {
-    for (const category of Object.values(FILTER_FIELDS)) {
+    for (const category of Object.values(getFilterFields())) {
       const field = category.find(f => f.value === fieldValue)
       if (field) return field
     }
@@ -273,6 +313,13 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
   const buildWhereClause = (groups: FilterGroup[]): string => {
     console.log('[SegmentForm] Building WHERE clause from groups:', groups)
     
+    // Check if any product filters are used
+    const hasProductFilters = groups.some(group => 
+      group.rules.some(rule => 
+        ['PRODUCT_BRAND', 'PRODUCT_TYPE', 'PRODUCT_SUBTYPE'].includes(rule.field)
+      )
+    )
+    
     const groupClauses = groups
       .filter(group => group.rules.length > 0)
       .map(group => {
@@ -280,6 +327,25 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
           .filter(rule => rule.field && rule.operator && (rule.value || ['is_empty', 'is_not_empty'].includes(rule.operator)))
           .map(rule => {
             const field = rule.field
+            
+            // For product fields, we need to check in the TICKETLINE_SALES table
+            if (['PRODUCT_BRAND', 'PRODUCT_TYPE', 'PRODUCT_SUBTYPE'].includes(field)) {
+              // These will be handled as a subquery in the Snowflake API
+              switch (rule.operator) {
+                case 'equals':
+                  return `${field} = '${rule.value}'`
+                case 'not_equals':
+                  return `${field} != '${rule.value}'`
+                case 'in':
+                  const inValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
+                  return `${field} IN (${inValues})`
+                case 'not_in':
+                  const notInValues = String(rule.value).split(',').map(v => `'${v.trim()}'`).join(',')
+                  return `${field} NOT IN (${notInValues})`
+                default:
+                  return null
+              }
+            }
             
             switch (rule.operator) {
               case 'equals':
@@ -632,13 +698,13 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
           </div>
 
           {/* Filter Builder */}
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex overflow-hidden" style={{ height: '60%' }}>
             {/* Field Categories */}
             <div className="w-64 bg-gray-50 border-r border-gray-200 overflow-y-auto">
               <div className="p-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Filter Categories</h3>
                 <div className="space-y-1">
-                  {Object.entries(FILTER_FIELDS).map(([key]) => (
+                  {Object.entries(getFilterFields()).map(([key]) => (
                     <button
                       key={key}
                       type="button"
@@ -661,7 +727,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
                   Available Fields
                 </h4>
                 <div className="space-y-2">
-                  {FILTER_FIELDS[activeTab].map((field) => {
+                  {getFilterFields()[activeTab].map((field) => {
                     const Icon = field.icon
                     return (
                       <div
@@ -762,7 +828,7 @@ export function SegmentForm({ segment, onSave, onCancel }: SegmentFormProps) {
                               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[150px]"
                             >
                               <option value="">Select field</option>
-                              {Object.entries(FILTER_FIELDS).map(([category, fields]) => (
+                              {Object.entries(getFilterFields()).map(([category, fields]) => (
                                 <optgroup key={category} label={category.charAt(0).toUpperCase() + category.slice(1)}>
                                   {fields.map(field => (
                                     <option key={field.value} value={field.value}>

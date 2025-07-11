@@ -17,9 +17,21 @@ export function Segments() {
   const [showSegmentForm, setShowSegmentForm] = useState(false)
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null)
   const [selectedSegmentForPerformance, setSelectedSegmentForPerformance] = useState<Segment | null>(null)
+  
+  // Product filters cache
+  const [productFilters, setProductFilters] = useState<{
+    brands: string[]
+    types: string[]
+    subtypes: string[]
+  }>({
+    brands: [],
+    types: [],
+    subtypes: []
+  })
 
   useEffect(() => {
     loadSegments()
+    loadProductFilters()
   }, [])
 
   const loadSegments = async () => {
@@ -61,6 +73,26 @@ export function Segments() {
       }, error as Error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadProductFilters = async () => {
+    logger.info('Loading product filters', { component: 'Segments' })
+    
+    try {
+      const filters = await snowflakeAPI.getProductFilters()
+      setProductFilters(filters)
+      
+      logger.info('Product filters loaded', {
+        component: 'Segments',
+        brandsCount: filters.brands.length,
+        typesCount: filters.types.length,
+        subtypesCount: filters.subtypes.length
+      })
+    } catch (error) {
+      logger.error('Failed to load product filters', {
+        component: 'Segments'
+      }, error as Error)
     }
   }
 
@@ -300,6 +332,7 @@ export function Segments() {
       {(showSegmentForm || editingSegment) && (
         <SegmentForm
           segment={editingSegment}
+          productFilters={productFilters}
           onSave={editingSegment ?
             (segmentData) => handleUpdateSegment(editingSegment.id, segmentData) :
             handleCreateSegment

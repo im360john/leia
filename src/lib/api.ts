@@ -287,17 +287,67 @@ export const snowflakeAPI = {
   async getCustomerCount(whereClause?: string): Promise<{ count: number; whereClause: string }> {
     try {
       // Build the full WHERE clause with ORG_ID filter
-      const orgFilter = "ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'"
-      const fullWhereClause = whereClause 
-        ? `${orgFilter} AND (${whereClause})`
-        : orgFilter
-
-      console.log('[SnowflakeAPI] Getting customer count with WHERE clause:', fullWhereClause)
-
-      // Build the full SQL query
-      const sqlQuery = `SELECT COUNT(*) as count 
-                FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT 
-                WHERE ${fullWhereClause}`;
+      const orgFilter = "c.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'"
+      
+      // Check if we have product filters
+      const hasProductFilters = whereClause && (
+        whereClause.includes('PRODUCT_BRAND') || 
+        whereClause.includes('PRODUCT_TYPE') || 
+        whereClause.includes('PRODUCT_SUBTYPE')
+      )
+      
+      let sqlQuery = ''
+      
+      if (hasProductFilters) {
+        // Split the where clause into product and non-product conditions
+        const productConditions: string[] = []
+        const customerConditions: string[] = []
+        
+        if (whereClause) {
+          // Parse the WHERE clause to separate product and customer conditions
+          const conditions = whereClause.split(/\s+(?:AND|OR)\s+/i)
+          
+          conditions.forEach(condition => {
+            if (condition.includes('PRODUCT_BRAND') || 
+                condition.includes('PRODUCT_TYPE') || 
+                condition.includes('PRODUCT_SUBTYPE')) {
+              productConditions.push(condition)
+            } else {
+              customerConditions.push(condition)
+            }
+          })
+        }
+        
+        const customerWhere = customerConditions.length > 0 
+          ? `${orgFilter} AND (${customerConditions.join(' AND ')})`
+          : orgFilter
+          
+        const productWhere = productConditions.length > 0
+          ? ` AND ${productConditions.join(' AND ')}`
+          : ''
+        
+        // Query with JOIN to TICKETLINE_SALES
+        sqlQuery = `
+          SELECT COUNT(DISTINCT c.CUSTOMER_ID) as count 
+          FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
+          INNER JOIN RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES s
+            ON c.ORG_ID = s.ORG_ID 
+            AND c.STORE_ID = s.STORE_ID 
+            AND c.CUSTOMER_ID = s.CUSTOMER_ID
+          WHERE ${customerWhere}${productWhere}
+        `
+      } else {
+        // Simple query without product filters
+        const fullWhereClause = whereClause 
+          ? `${orgFilter} AND (${whereClause})`
+          : orgFilter
+          
+        sqlQuery = `
+          SELECT COUNT(*) as count 
+          FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT c
+          WHERE ${fullWhereClause}
+        `
+      }
       
       console.log('[SnowflakeAPI] Full SQL query being sent to Snowflake:', sqlQuery);
 
@@ -333,7 +383,7 @@ export const snowflakeAPI = {
       
       return {
         count: count,
-        whereClause: fullWhereClause
+        whereClause: whereClause || ''
       }
     } catch (error) {
       console.error('[SnowflakeAPI] Failed to get customer count:', error)
@@ -357,6 +407,99 @@ export const snowflakeAPI = {
     } catch (error) {
       console.error('Failed to preview customers:', error)
       throw error
+    }
+  },
+
+  async getProductFilters(): Promise<{ brands: string[]; types: string[]; subtypes: string[] }> {
+    try {
+      console.log('[SnowflakeAPI] Fetching distinct product filter values')
+      
+      // Run three queries in parallel to get distinct values
+      const [brandsResponse, typesResponse, subtypesResponse] = await Promise.all([
+        // Get distinct brands
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT PRODUCT_BRAND
+              FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES
+              WHERE ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND PRODUCT_BRAND IS NOT NULL
+                AND PRODUCT_BRAND != ''
+              ORDER BY PRODUCT_BRAND
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        
+        // Get distinct types
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT PRODUCT_TYPE
+              FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES
+              WHERE ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND PRODUCT_TYPE IS NOT NULL
+                AND PRODUCT_TYPE != ''
+              ORDER BY PRODUCT_TYPE
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        }),
+        
+        // Get distinct subtypes
+        supabase.functions.invoke('snowflake', {
+          body: {
+            sql: `
+              SELECT DISTINCT PRODUCT_SUBTYPE
+              FROM RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES
+              WHERE ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
+                AND PRODUCT_SUBTYPE IS NOT NULL
+                AND PRODUCT_SUBTYPE != ''
+              ORDER BY PRODUCT_SUBTYPE
+              LIMIT 100
+            `,
+            database: 'RETAIL_ANALYTICS',
+            warehouse: 'RETAIL_ANALYTICS'
+          }
+        })
+      ])
+      
+      // Extract values from responses
+      const extractValues = (response: any): string[] => {
+        if (response.error) {
+          console.error('[SnowflakeAPI] Error in product filter query:', response.error)
+          return []
+        }
+        
+        const data = response.data?.data?.data || []
+        return data.map((row: any[]) => row[0]).filter(Boolean)
+      }
+      
+      const result = {
+        brands: extractValues(brandsResponse),
+        types: extractValues(typesResponse),
+        subtypes: extractValues(subtypesResponse)
+      }
+      
+      console.log('[SnowflakeAPI] Product filters loaded:', {
+        brandsCount: result.brands.length,
+        typesCount: result.types.length,
+        subtypesCount: result.subtypes.length
+      })
+      
+      return result
+    } catch (error) {
+      console.error('[SnowflakeAPI] Failed to get product filters:', error)
+      // Return empty arrays on error
+      return {
+        brands: [],
+        types: [],
+        subtypes: []
+      }
     }
   }
 }
