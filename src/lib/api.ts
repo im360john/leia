@@ -287,7 +287,7 @@ export const snowflakeAPI = {
   async getCustomerCount(whereClause?: string): Promise<{ count: number; whereClause: string }> {
     try {
       // Build the full WHERE clause with ORG_ID filter
-      const orgFilter = "ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'"
+      const orgFilter = "ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'"
       const fullWhereClause = whereClause 
         ? `${orgFilter} AND (${whereClause})`
         : orgFilter

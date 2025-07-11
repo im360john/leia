@@ -251,7 +251,7 @@ Key tables:
 - `RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT` - Customer profiles and lifetime metrics
 - `RETAIL_ANALYTICS.DBT_TICKET.TICKETLINE_SALES` - Sales transaction details
 
-All queries are automatically filtered by `ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'`
+All queries are automatically filtered by `ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'`
 
 ### Database Setup
 Run migrations in order:

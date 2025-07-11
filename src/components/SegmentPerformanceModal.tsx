@@ -115,7 +115,7 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
           AVG(LIFETIME_DISCOUNTS) as avg_lifetime_discounts,
           SUM(LIFETIME_DISCOUNTS) as total_lifetime_discounts
         FROM RETAIL_ANALYTICS.DBT_CUSTOMER.CUSTOMER_FACT
-        WHERE ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'
+        WHERE ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
         ${whereClause ? `AND (${whereClause})` : ''}
       `
       
@@ -168,7 +168,7 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
           ON s.ORG_ID = c.ORG_ID 
           AND s.STORE_ID = c.STORE_ID 
           AND s.CUSTOMER_ID = c.CUSTOMER_ID
-        WHERE s.ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'
+        WHERE s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
           AND ${dateFilter}
           ${segment.where_clause ? `AND (${segment.where_clause})` : ''}
           ${productFilters.length > 0 ? `AND ${productFilters.join(' AND ')}` : ''}
@@ -220,7 +220,7 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
           ON s.ORG_ID = c.ORG_ID 
           AND s.STORE_ID = c.STORE_ID 
           AND s.CUSTOMER_ID = c.CUSTOMER_ID
-        WHERE s.ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'
+        WHERE s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
           AND ${dateFilter}
           ${segment.where_clause ? `AND (${segment.where_clause})` : ''}
           ${productFilters.length > 0 ? `AND ${productFilters.join(' AND ')}` : ''}
@@ -268,7 +268,7 @@ export function SegmentPerformanceModal({ segment, onClose }: SegmentPerformance
           ON s.ORG_ID = c.ORG_ID 
           AND s.STORE_ID = c.STORE_ID 
           AND s.CUSTOMER_ID = c.CUSTOMER_ID
-        WHERE s.ORG_ID = 'e5058cc4-c7c3-4b6c-a6ca-0e590783a824'
+        WHERE s.ORG_ID = '0273cbe1-667c-4421-a875-d65afff0280b'
           ${segment.where_clause ? `AND (${segment.where_clause})` : ''}
           AND s.DATE_CLOSE >= DATEADD(day, -90, CURRENT_DATE())
         LIMIT 1000
