@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Users, TrendingUp, ChevronLeft, ChevronRight } from
 import { segmentsAPI, snowflakeAPI } from '../lib/api'
 import { Segment } from '../lib/supabase'
 import { SegmentForm } from '../components/SegmentForm'
+import { SegmentPerformanceModal } from '../components/SegmentPerformanceModal'
 import { logger } from '../lib/logger'
 
 const ITEMS_PER_PAGE = 8
@@ -15,6 +16,7 @@ export function Segments() {
   // Form states
   const [showSegmentForm, setShowSegmentForm] = useState(false)
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null)
+  const [selectedSegmentForPerformance, setSelectedSegmentForPerformance] = useState<Segment | null>(null)
 
   useEffect(() => {
     loadSegments()
@@ -195,7 +197,11 @@ export function Segments() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {currentSegments.map((segment) => (
-              <div key={segment.id} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div 
+                key={segment.id} 
+                className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setSelectedSegmentForPerformance(segment)}
+              >
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">{segment.name}</h3>
@@ -207,13 +213,19 @@ export function Segments() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setEditingSegment(segment)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingSegment(segment)
+                      }}
                       className="p-1 text-gray-400 hover:text-gray-600"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteSegment(segment.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteSegment(segment.id)
+                      }}
                       className="p-1 text-gray-400 hover:text-red-600"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -296,6 +308,14 @@ export function Segments() {
             setShowSegmentForm(false)
             setEditingSegment(null)
           }}
+        />
+      )}
+
+      {/* Segment Performance Modal */}
+      {selectedSegmentForPerformance && (
+        <SegmentPerformanceModal
+          segment={selectedSegmentForPerformance}
+          onClose={() => setSelectedSegmentForPerformance(null)}
         />
       )}
     </div>
