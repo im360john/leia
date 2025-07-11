@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { productSegmentsAPI, snowflakeAPI } from '../lib/api'
 import { Segment } from '../lib/supabase'
-import SegmentForm from '../components/SegmentForm'
-import SegmentPerformanceModal from '../components/SegmentPerformanceModal'
+import ProductSegmentForm from '../components/ProductSegmentForm'
+import ProductSegmentPerformanceModal from '../components/ProductSegmentPerformanceModal'
 import { logger } from '../lib/logger'
 
 const ITEMS_PER_PAGE = 8
 
-export function Segments() {
+export function ProductSegments() {
   const [segments, setSegments] = useState<Segment[]>([])
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -337,11 +337,10 @@ export function Segments() {
         </>
       )}
 
-      {/* Segment Form Modal */}
+      {/* Product Segment Form Modal */}
       {(showSegmentForm || editingSegment) && (
-        <SegmentForm
+        <ProductSegmentForm
           segment={editingSegment}
-          productFilters={productFilters}
           onSave={editingSegment ?
             (segmentData) => handleUpdateSegment(editingSegment.id, segmentData) :
             handleCreateSegment
@@ -353,9 +352,9 @@ export function Segments() {
         />
       )}
 
-      {/* Segment Performance Modal */}
+      {/* Product Segment Performance Modal */}
       {selectedSegmentForPerformance && (
-        <SegmentPerformanceModal
+        <ProductSegmentPerformanceModal
           segment={selectedSegmentForPerformance}
           onClose={() => setSelectedSegmentForPerformance(null)}
         />
