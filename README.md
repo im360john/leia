@@ -5,150 +5,216 @@ A sophisticated AI-powered marketing platform designed for DTC brands, featuring
 ## 🚀 Features
 
 - **AI Marketing Strategist**: Chat-based interface for campaign planning and marketing strategy
-- **Smart Customer Segmentation**: Behavioral and predictive customer segments powered by AI
-- **Campaign Management**: Create, manage, and track email marketing campaigns
+- **Smart Customer Segmentation**: Behavioral and predictive customer segments powered by Snowflake data
+- **Campaign Management**: Create, manage, and track email marketing campaigns with Resend integration
 - **Analytics Dashboard**: Comprehensive performance tracking and insights
-- **Real-time Chat Interface**: Conversational AI with streaming responses and quick actions
+- **Real-time Chat Interface**: Conversational AI with streaming responses powered by OpenAI
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
-- **State Management**: React Hooks (useState, useEffect)
-- **Build Tool**: Vite
-- **Linting**: ESLint with TypeScript support
+- **Backend**: Supabase (PostgreSQL + Auth + Edge Functions)
+- **Styling**: Tailwind CSS + Lucide Icons
+- **Email**: Resend API for email delivery
+- **Data**: Snowflake integration for customer data
+- **AI**: OpenAI API for marketing assistant
 
-## 📦 Installation
+## 🚀 Quick Start
 
-1. Clone the repository:
+### Prerequisites
+
+- Node.js 18+ and npm
+- A [Supabase](https://supabase.com) account (free tier works)
+- (Optional) Supabase CLI for advanced setup
+
+### 1. Clone & Install
+
 ```bash
-git clone <your-repo-url>
-cd leia-ai-marketing
-```
-
-2. Install dependencies:
-```bash
+git clone https://github.com/im360john/leia.git
+cd leia
 npm install
 ```
 
-3. Start the development server:
+### 2. Environment Setup
+
+Copy the example environment file:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your Supabase credentials:
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+You can find these in your Supabase project settings under Settings → API.
+
+### 3. Database Setup
+
+The app uses Supabase for backend services. You have two options:
+
+#### Option A: Quick Setup (Recommended for first-time users)
+1. Create a new Supabase project at [app.supabase.com](https://app.supabase.com)
+2. Go to SQL Editor in your Supabase dashboard
+3. Run the migrations in order from `supabase/migrations/`:
+   - `20250706013524_pink_lantern.sql` - Creates demo user
+   - `20250706014722_square_king.sql` - Main schema
+   - `20250706014913_silent_cliff.sql` - Sample data
+   - `20250710142521_email_tracking.sql` - Email tracking tables
+
+#### Option B: CLI Setup (For developers familiar with Supabase)
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Link to your project
+npx supabase link --project-ref your-project-ref
+
+# Run migrations
+npx supabase db push
+```
+
+### 4. Create Demo User
+
+After running migrations, create a demo user:
+1. Go to Authentication → Users in your Supabase dashboard
+2. Click "Invite user"
+3. Enter email: `demo@leia.com` and password: `password123`
+4. Or use the signup flow in the app
+
+### 5. Start Development Server
+
 ```bash
 npm run dev
 ```
 
-4. Open your browser and navigate to `http://localhost:5173`
-
-## 🏗️ Project Structure
-
-```
-src/
-├── App.tsx              # Main application component
-├── main.tsx            # Application entry point
-├── index.css           # Global styles with Tailwind imports
-└── vite-env.d.ts       # Vite type definitions
-
-public/
-├── vite.svg            # Vite logo
-└── ...                 # Other static assets
-
-config files:
-├── package.json        # Dependencies and scripts
-├── tsconfig.json       # TypeScript configuration
-├── tailwind.config.js  # Tailwind CSS configuration
-├── postcss.config.js   # PostCSS configuration
-├── vite.config.ts      # Vite configuration
-└── eslint.config.js    # ESLint configuration
-```
-
-## 🎯 Key Components
-
-### AI Strategist Chat
-- Real-time conversational interface
-- Streaming message responses
-- Quick action suggestions
-- Context-aware recommendations
-
-### Campaign Management
-- Campaign creation and tracking
-- Performance metrics visualization
-- Status management (draft, active, completed)
-- Revenue and engagement analytics
-
-### Customer Segmentation
-- Behavioral segments (VIP Customers, Recent Purchasers)
-- Predictive segments (At-Risk Churners, High CLV Potential)
-- Growth tracking and customer counts
-- Segment-based campaign targeting
-
-### Analytics Dashboard
-- Revenue tracking and trends
-- Email performance metrics
-- Customer lifetime value insights
-- Segment performance analysis
-
-## 🎨 Design System
-
-The application uses a modern design system with:
-- **Primary Colors**: Purple gradient (#5B21B6 to #EC4899)
-- **Typography**: Inter font family
-- **Spacing**: 8px grid system
-- **Components**: Consistent card layouts, buttons, and interactive elements
-- **Responsive Design**: Mobile-first approach with Tailwind breakpoints
-
-## 📱 Responsive Design
-
-The application is fully responsive with:
-- Mobile-optimized sidebar navigation
-- Adaptive grid layouts
-- Touch-friendly interactive elements
-- Optimized chat interface for all screen sizes
+Visit `http://localhost:5173` and log in with:
+- Email: `demo@leia.com`
+- Password: `password123`
 
 ## 🔧 Available Scripts
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
-- `npm run preview` - Preview production build
+- `npm run preview` - Preview production build locally
 - `npm run lint` - Run ESLint
+- `npx tsc --noEmit` - Type check without building
+
+## 🏗️ Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+│   ├── AuthForm.tsx     # Login/signup form
+│   ├── CampaignForm.tsx # Campaign management
+│   ├── SegmentForm.tsx  # Customer segment builder
+│   └── ...
+├── pages/              # Page components
+│   ├── Dashboard.tsx   # Main dashboard
+│   ├── Campaigns.tsx   # Campaign management
+│   ├── Segments.tsx    # Customer segments
+│   └── Chat.tsx        # AI chat interface
+├── lib/                # Utilities & API
+│   ├── api.ts          # API client
+│   ├── supabase.ts     # Supabase client & types
+│   └── logger.ts       # Logging utility
+├── hooks/              # Custom React hooks
+│   └── useAuth.ts      # Authentication hook
+└── App.tsx             # Main app component
+
+supabase/
+├── functions/          # Edge functions (Deno)
+│   ├── ai-chat/        # OpenAI integration
+│   ├── campaigns/      # Campaign operations
+│   ├── segments/       # Segment operations
+│   └── ...
+└── migrations/         # Database schema
+```
+
+## 🔗 Optional: Edge Functions Setup
+
+For full functionality (AI chat, email sending, Snowflake queries), deploy the edge functions:
+
+### Deploy All Functions
+```bash
+# Deploy all edge functions at once
+npx supabase functions deploy --no-verify-jwt
+```
+
+### Required Environment Variables
+Set these in your Supabase dashboard under Settings → Edge Functions:
+
+```bash
+# For AI Chat
+OPENAI_API_KEY=your_openai_api_key
+
+# For Email Sending
+RESEND_API_KEY=your_resend_api_key
+
+# For Snowflake (if using real data)
+SNOWFLAKE_ACCOUNT=your_account
+SNOWFLAKE_USER=your_user
+SNOWFLAKE_PRIVATE_KEY=your_private_key
+SNOWFLAKE_PUBLIC_KEY_FP=your_key_fingerprint
+```
+
+## 🧪 Development Tips
+
+### Logging
+The app includes a comprehensive logging system:
+- **Development**: Color-coded console logs
+- **Production**: Stored in localStorage
+- Access logs: `window.logger.getLogs()` in browser console
+
+### Common Issues & Solutions
+
+1. **Empty lists/data**: Check if you're logged in and migrations ran successfully
+2. **AI chat not working**: Ensure `ai-chat` edge function is deployed with OpenAI API key
+3. **Type errors**: Run `npx tsc --noEmit` to check TypeScript errors
+4. **Build issues**: Clear node_modules and reinstall: `rm -rf node_modules && npm install`
+
+### Testing with Mock Data
+The app includes sample data after migrations. You can:
+- View sample campaigns and segments
+- Test the AI chat (works with fallback if no OpenAI key)
+- Create new campaigns and segments
+- View analytics dashboards
 
 ## 🚀 Deployment
 
-### Build for Production
-```bash
-npm run build
-```
+The app is a static SPA that can be deployed to any static hosting service.
 
-The build artifacts will be stored in the `dist/` directory.
+### Deploy to Render (Recommended)
+1. Push your code to GitHub
+2. Create a new Static Site on [Render](https://render.com)
+3. Connect your GitHub repo
+4. Use these settings:
+   - Build Command: `npm install && npm run build`
+   - Publish Directory: `dist`
+   - Add environment variables in Render dashboard
 
 ### Deploy to Netlify
-1. Build the project: `npm run build`
-2. Upload the `dist/` folder to Netlify
-3. Configure build settings:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
+```bash
+npm run build
+netlify deploy --dir=dist --prod
+```
 
 ### Deploy to Vercel
-1. Install Vercel CLI: `npm i -g vercel`
-2. Run: `vercel`
-3. Follow the prompts
+```bash
+npm run build
+vercel --prod
+```
 
-## 🎭 Mock Data
+## 🔮 Next Steps
 
-The application currently uses mock data for demonstration purposes:
+Once you have the basic app running:
 
-- **Campaigns**: Sample email campaigns with performance metrics
-- **Segments**: AI-generated customer segments with growth data
-- **Analytics**: Simulated performance data and trends
-- **Chat Messages**: Pre-configured AI responses and suggestions
-
-## 🔮 Future Enhancements
-
-- **Backend Integration**: Connect to real APIs for data management
-- **Authentication**: User login and multi-tenant support
-- **Real AI Integration**: Connect to OpenAI or similar LLM services
-- **Database**: Persistent data storage with PostgreSQL
-- **Email Integration**: Klaviyo and other ESP integrations
-- **E-commerce Integration**: Shopify and other platform connections
+1. **Customize Branding**: Update colors in `tailwind.config.js`
+2. **Add Real Data**: Connect to your Snowflake/data warehouse
+3. **Configure Email**: Set up Resend for production email sending
+4. **Enhance AI**: Fine-tune prompts in `ai-chat` function
+5. **Add Features**: Implement A/B testing, automation workflows, etc.
 
 ## 🤝 Contributing
 
@@ -158,17 +224,20 @@ The application currently uses mock data for demonstration purposes:
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
-## 📄 License
+## 📚 Additional Resources
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- [Supabase Documentation](https://supabase.com/docs)
+- [React Documentation](https://react.dev)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs)
 
-## 🙏 Acknowledgments
+## ⚠️ Important Notes
 
-- Built with [Vite](https://vitejs.dev/) for fast development
-- Styled with [Tailwind CSS](https://tailwindcss.com/) for utility-first styling
-- Icons provided by [Lucide React](https://lucide.dev/)
-- Inspired by modern AI-powered marketing platforms
+- **POC Status**: This is a proof-of-concept with some production shortcuts
+- **Demo Credentials**: Change the demo user password in production
+- **API Keys**: Never commit API keys to version control
+- **CORS**: Edge functions use open CORS (`*`) - restrict in production
 
 ---
 
-**Note**: This is a frontend mockup/prototype. For production use, you'll need to implement backend services, authentication, and real data integrations.
+Built with ❤️ for modern marketing teams
